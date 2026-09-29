@@ -15,6 +15,7 @@ from flask import (
 from flaskapi_guard import (
     BehaviorRule,
     FlaskAPIGuard,
+    FlaskGuardResponse,
     SecurityConfig,
     SecurityDecorator,
     cloud_handler,
@@ -29,13 +30,19 @@ logger = logging.getLogger(__name__)
 
 
 def custom_request_check(req):
-    if req.args.get("debug") == "true":
-        client_host = req.remote_addr or "unknown"
+    # The check receives the guard's abstract request protocol:
+    # query params live on req.query_params, not Flask's request.args.
+    if req.query_params.get("debug") == "true":
+        client_host = req.client_host or "unknown"
         logger.warning(f"Blocked debug request from {client_host}")
-        return Response(
-            response='{"detail": "Debug mode not allowed"}',
-            status=403,
-            content_type="application/json",
+        # Custom checks must return the guard response type, not a raw
+        # Flask Response: the pipeline unwraps .body/.status_code itself.
+        return FlaskGuardResponse(
+            Response(
+                response='{"detail": "Debug mode not allowed"}',
+                status=403,
+                content_type="application/json",
+            )
         )
     return None
 
@@ -49,7 +56,8 @@ def custom_response_modifier(resp):
 
 
 security_config = SecurityConfig(
-    whitelist=["127.0.0.1", "::1", "10.0.0.0/8"],
+    # Include the Docker client networks so host curls are not flagged
+    whitelist=["127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"],
     blacklist=["192.168.100.0/24"],
     trusted_proxies=["127.0.0.1", "10.0.0.0/8"],
     trusted_proxy_depth=2,
@@ -63,6 +71,7 @@ security_config = SecurityConfig(
     auto_ban_threshold=5,
     auto_ban_duration=300,
     enable_penetration_detection=True,
+    behavior_scan_response_body=True,
     enable_redis=True,
     redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379"),
     redis_prefix=os.environ.get("REDIS_PREFIX", "flaskapi_guard:"),
