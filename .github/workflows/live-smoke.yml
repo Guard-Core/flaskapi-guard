@@ -53,6 +53,8 @@ jobs:
         run: |
           rm -rf live_smoke_stack
           cp -r examples/simple_app live_smoke_stack
+          wheel=$(ls examples/live_smoke_wheels/flaskapi_guard-*.whl | head -n 1)
+          cp "$wheel" live_smoke_stack/
           python3 - <<'EOF'
           import pathlib
           stack = pathlib.Path("live_smoke_stack")
