@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: live-smoke-${ github.ref }
+  group: live-smoke-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
