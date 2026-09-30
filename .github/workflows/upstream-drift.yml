@@ -1,0 +1,64 @@
+name: Upstream Drift
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  drift:
+    name: Test against guard-core@master
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout flaskapi-guard
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Checkout guard-core@master
+        uses: actions/checkout@v7
+        with:
+          repository: rennf93/guard-core
+          ref: master
+          path: guard-core-upstream
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: |
+          pip install uv
+
+      - name: Build the guard-core wheel from guard-core@master
+        run: |
+          cd guard-core-upstream
+          pip install build
+          python -m build --wheel --outdir ../wheels
+
+      - name: Install the flaskapi-guard dev environment
+        run: |
+          uv sync --extra dev
+
+      - name: Force-install the guard-core@master wheel over the resolved one
+        run: |
+          wheel=$(ls wheels/guard_core-*.whl | head -n 1)
+          uv pip install --python .venv/bin/python --no-deps --force-reinstall "$wheel"
+
+      - name: Run the flaskapi-guard test suite against guard-core@master
+        run: |
+          IPINFO_TOKEN='test_token' REDIS_URL='redis://localhost:6379' REDIS_PREFIX='drift:flaskapi_guard:' uv run python -m pytest -v --cov=flaskapi_guard

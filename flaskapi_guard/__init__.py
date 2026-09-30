@@ -26,6 +26,7 @@ from guard_core.sync.protocols.request_protocol import (
 )
 from guard_core.sync.protocols.response_protocol import GuardResponse
 
+from flaskapi_guard.adapters import FlaskGuardRequest, FlaskGuardResponse
 from flaskapi_guard.extension import FlaskAPIGuard
 
 try:
@@ -36,6 +37,8 @@ except PackageNotFoundError:
 __all__ = [
     "__version__",
     "FlaskAPIGuard",
+    "FlaskGuardRequest",
+    "FlaskGuardResponse",
     "SecurityConfig",
     "SecurityDecorator",
     "RouteConfig",

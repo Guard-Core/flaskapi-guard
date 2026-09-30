@@ -1,0 +1,117 @@
+name: Live Smoke
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'flaskapi_guard/**'
+      - 'examples/**'
+      - '.github/workflows/live-smoke.yml'
+  pull_request:
+    paths:
+      - 'flaskapi_guard/**'
+      - 'examples/**'
+      - '.github/workflows/live-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-smoke:
+    name: Dockerized smoke run (simple_app)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LIVE_SMOKE_PROJECT: flaskapi-guard-live-smoke
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: |
+          pip install uv
+
+      - name: Build the flaskapi_guard wheel from this checkout
+        run: |
+          uv build --wheel --out-dir examples/live_smoke_wheels
+
+      - name: Stage the example app with the checkout wheel
+        run: |
+          rm -rf live_smoke_stack
+          cp -r examples/simple_app live_smoke_stack
+          wheel=$(ls examples/live_smoke_wheels/flaskapi_guard-*.whl | head -n 1)
+          cp "$wheel" live_smoke_stack/
+          python3 - <<'EOF'
+          import pathlib
+          stack = pathlib.Path("live_smoke_stack")
+          wheel = next(stack.glob("flaskapi_guard-*.whl"))
+          req = stack / "requirements.txt"
+          lines = [line for line in req.read_text().splitlines() if not line.startswith("flaskapi_guard")]
+          lines.append(f"flaskapi_guard @ file:///app/{wheel.name}")
+          req.write_text("\n".join(lines) + "\n")
+          dockerfile = stack / "Dockerfile"
+          df = dockerfile.read_text()
+          anchor = "COPY requirements.txt /app/"
+          assert anchor in df
+          dockerfile.write_text(df.replace(anchor, anchor + f"\nCOPY {wheel.name} /app/"))
+          EOF
+
+      - name: Bring the smoke stack up
+        run: |
+          docker compose -p "$LIVE_SMOKE_PROJECT" -f live_smoke_stack/docker-compose.yml up --build -d --wait
+
+      - name: Run smoke assertions
+        run: |
+          set -euo pipefail
+          base="http://localhost:8000"
+
+          # Wait for the app to finish initializing (engine redis + ipinfo setup)
+          ready=""
+          for i in $(seq 1 30); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "$base/")" = "200" ]; then
+              ready=1; break
+            fi
+            sleep 2
+          done
+          if [ -z "$ready" ]; then
+            echo "FAIL: app never became ready"; exit 1
+          fi
+
+          check() {
+            local name="$1" expected="$2"; shift 2
+            local status
+            status=$(curl -sS --max-time 10 -o /tmp/smoke_body -w '%{http_code}' "$@") || {
+              echo "FAIL: $name (curl error)"; exit 1
+            }
+            if [ "$status" != "$expected" ]; then
+              echo "FAIL: $name (expected $expected, got $status)"; cat /tmp/smoke_body; exit 1
+            fi
+            echo "ok: $name -> $status"
+          }
+
+          check "GET / serves" 200 "$base/"
+          check "GET /health serves" 200 "$base/health"
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          docker compose -p "$LIVE_SMOKE_PROJECT" -f live_smoke_stack/docker-compose.yml logs --no-color
+
+      - name: Bring the smoke stack down
+        if: always()
+        run: |
+          docker compose -p "$LIVE_SMOKE_PROJECT" -f live_smoke_stack/docker-compose.yml down -v --remove-orphans
