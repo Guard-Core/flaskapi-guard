@@ -64,10 +64,10 @@ jobs:
           IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "flaskapi-guard-example" | head -n 1)
           echo "Using image: ${IMAGE_NAME}"
 
-          docker tag ${IMAGE_NAME} ghcr.io/${{ github.repository_owner }}/flaskapi-guard-example:latest
-          docker push ghcr.io/${{ github.repository_owner }}/flaskapi-guard-example:latest
+          docker tag ${IMAGE_NAME} ghcr.io/guard-core/flaskapi-guard-example:latest
+          docker push ghcr.io/guard-core/flaskapi-guard-example:latest
 
           if [[ "${{ env.IS_RELEASE }}" == "true" ]]; then
-            docker tag ${IMAGE_NAME} ghcr.io/${{ github.repository_owner }}/flaskapi-guard-example:${{ env.VERSION }}
-            docker push ghcr.io/${{ github.repository_owner }}/flaskapi-guard-example:${{ env.VERSION }}
+            docker tag ${IMAGE_NAME} ghcr.io/guard-core/flaskapi-guard-example:${{ env.VERSION }}
+            docker push ghcr.io/guard-core/flaskapi-guard-example:${{ env.VERSION }}
           fi
