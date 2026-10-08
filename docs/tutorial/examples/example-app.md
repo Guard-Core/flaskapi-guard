@@ -32,7 +32,7 @@ Code Overview
 
 The example app is built using Flask and shows how to integrate FlaskAPI Guard as an extension:
 
-[Example Code](https://github.com/rennf93/flaskapi-guard/blob/master/examples/main.py)
+[Example Code](https://github.com/Guard-Core/flaskapi-guard/blob/master/examples/main.py)
 
 ```python
 from flask import Flask
@@ -64,7 +64,7 @@ The easiest way to run the example is with Docker Compose, which automatically s
 
 ```bash
 # Clone the repository
-git clone https://github.com/rennf93/flaskapi-guard.git
+git clone https://github.com/Guard-Core/flaskapi-guard.git
 cd flaskapi-guard/examples
 
 # Start the app with Redis
@@ -83,7 +83,7 @@ ___
 Docker Compose File
 -------------------
 
-[Docker Compose File](https://github.com/rennf93/flaskapi-guard/blob/master/examples/compose.yml)
+[Docker Compose File](https://github.com/Guard-Core/flaskapi-guard/blob/master/examples/compose.yml)
 
 ```yaml
 services:
@@ -122,7 +122,7 @@ Testing Security Features
 
 You can use the included test battery to verify security features:
 
-[Test battery](https://github.com/rennf93/flaskapi-guard/blob/master/examples/test_battery.txt)
+[Test battery](https://github.com/Guard-Core/flaskapi-guard/blob/master/examples/test_battery.txt)
 
 ```bash
 # For rate limiting (will trigger after 15 requests)
@@ -159,7 +159,7 @@ ___
 Source Code
 -----------
 
-You can find the complete example code in the [examples directory](https://github.com/rennf93/flaskapi-guard/tree/master/examples) of the GitHub repository.
+You can find the complete example code in the [examples directory](https://github.com/Guard-Core/flaskapi-guard/tree/master/examples) of the GitHub repository.
 
 ___
 

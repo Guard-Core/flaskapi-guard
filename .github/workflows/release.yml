@@ -63,7 +63,7 @@ jobs:
 
       - name: Update Docs Version Secret
         if: ${{ env.UPDATE_SECRET == 'true' }}
-        uses: rennf93/github-actions-secrets-mgmt@v1.5
+        uses: Guard-Core/github-actions-secrets-mgmt@v1.5
         with:
           OWNER: ${{ github.repository_owner }}
           REPOSITORY: ${{ github.event.repository.name }}

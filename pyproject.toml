@@ -3,7 +3,7 @@ name = "flaskapi_guard"
 version = "4.3.2"
 description = "A security library for Flask to control IPs, log requests, and detect penetration attempts."
 authors = [
-    {name = "Renzo Franceschini", email = "rennf93@users.noreply.github.com"}
+    {name = "Renzo Franceschini", email = "rennf93@guard-core.com"}
 ]
 readme = "README.md"
 license = "MIT"
@@ -29,7 +29,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/rennf93/flaskapi-guard"
+Homepage = "https://github.com/Guard-Core/flaskapi-guard"
+Documentation = "https://guard-core.github.io/flaskapi-guard/latest/"
+Repository = "https://github.com/Guard-Core/flaskapi-guard"
+Issues = "https://github.com/Guard-Core/flaskapi-guard/issues"
+Changelog = "https://github.com/Guard-Core/flaskapi-guard/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [

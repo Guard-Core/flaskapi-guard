@@ -87,7 +87,7 @@ jobs:
 
       - name: Update Docs Version Secret
         if: ${{ env.UPDATE_SECRET == 'true' }}
-        uses: rennf93/github-actions-secrets-mgmt@v1.5
+        uses: Guard-Core/github-actions-secrets-mgmt@v1.5
         with:
           OWNER: ${{ github.repository_owner }}
           REPOSITORY: ${{ github.event.repository.name }}
@@ -108,7 +108,7 @@ jobs:
 
       - name: Update Context7 Documentation
         id: context7
-        uses: rennf93/upsert-context7@1.1
+        uses: Guard-Core/upsert-context7@1.1
         with:
           operation: refresh
 

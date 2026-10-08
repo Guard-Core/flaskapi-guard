@@ -1,41 +1,41 @@
 <p align="center">
-    <a href="https://rennf93.github.io/flaskapi-guard/latest/">
-        <img src="https://rennf93.github.io/flaskapi-guard/latest/assets/flaskapi_guard_legend.svg" alt="FlaskAPI Guard">
+    <a href="https://guard-core.github.io/flaskapi-guard/latest/">
+        <img src="https://guard-core.github.io/flaskapi-guard/latest/assets/flaskapi_guard_legend.svg" alt="FlaskAPI Guard">
     </a>
 </p>
 
 ---
 
 <p align="center">
-    <strong>flaskapi-guard is a security library for Flask that provides an extension to control IPs, log requests, detect penetration attempts and more. It integrates seamlessly with Flask to offer robust protection against various security threats. Powered by <a href="https://github.com/rennf93/guard-core">guard-core</a>.</strong>
+    <strong>flaskapi-guard is a security library for Flask that provides an extension to control IPs, log requests, detect penetration attempts and more. It integrates seamlessly with Flask to offer robust protection against various security threats. Powered by <a href="https://github.com/Guard-Core/guard-core">guard-core</a>.</strong>
 </p>
 
 <p align="center">
     <a href="https://badge.fury.io/py/flaskapi-guard">
         <img src="https://badge.fury.io/py/flaskapi-guard.svg?cache=none&icon=si%3Apython&icon_color=%23008cb4" alt="PyPiVersion">
     </a>
-    <a href="https://github.com/rennf93/flaskapi-guard/actions/workflows/release.yml">
-        <img src="https://github.com/rennf93/flaskapi-guard/actions/workflows/release.yml/badge.svg" alt="Release">
+    <a href="https://github.com/Guard-Core/flaskapi-guard/actions/workflows/release.yml">
+        <img src="https://github.com/Guard-Core/flaskapi-guard/actions/workflows/release.yml/badge.svg" alt="Release">
     </a>
     <a href="https://opensource.org/licenses/MIT">
         <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
     </a>
-    <a href="https://github.com/rennf93/flaskapi-guard/actions/workflows/ci.yml">
-        <img src="https://github.com/rennf93/flaskapi-guard/actions/workflows/ci.yml/badge.svg" alt="CI">
+    <a href="https://github.com/Guard-Core/flaskapi-guard/actions/workflows/ci.yml">
+        <img src="https://github.com/Guard-Core/flaskapi-guard/actions/workflows/ci.yml/badge.svg" alt="CI">
     </a>
-    <a href="https://github.com/rennf93/flaskapi-guard/actions/workflows/code-ql.yml">
-        <img src="https://github.com/rennf93/flaskapi-guard/actions/workflows/code-ql.yml/badge.svg" alt="CodeQL">
+    <a href="https://github.com/Guard-Core/flaskapi-guard/actions/workflows/code-ql.yml">
+        <img src="https://github.com/Guard-Core/flaskapi-guard/actions/workflows/code-ql.yml/badge.svg" alt="CodeQL">
     </a>
 </p>
 
 <p align="center">
-    <a href="https://github.com/rennf93/flaskapi-guard/actions/workflows/pages/pages-build-deployment">
-        <img src="https://github.com/rennf93/flaskapi-guard/actions/workflows/pages/pages-build-deployment/badge.svg?branch=gh-pages" alt="PagesBuildDeployment">
+    <a href="https://github.com/Guard-Core/flaskapi-guard/actions/workflows/pages/pages-build-deployment">
+        <img src="https://github.com/Guard-Core/flaskapi-guard/actions/workflows/pages/pages-build-deployment/badge.svg?branch=gh-pages" alt="PagesBuildDeployment">
     </a>
-    <a href="https://github.com/rennf93/flaskapi-guard/actions/workflows/docs.yml">
-        <img src="https://github.com/rennf93/flaskapi-guard/actions/workflows/docs.yml/badge.svg" alt="DocsUpdate">
+    <a href="https://github.com/Guard-Core/flaskapi-guard/actions/workflows/docs.yml">
+        <img src="https://github.com/Guard-Core/flaskapi-guard/actions/workflows/docs.yml/badge.svg" alt="DocsUpdate">
     </a>
-    <img src="https://img.shields.io/github/last-commit/rennf93/flaskapi-guard?style=flat&amp;logo=git&amp;logoColor=white&amp;color=0080ff" alt="last-commit">
+    <img src="https://img.shields.io/github/last-commit/Guard-Core/flaskapi-guard?style=flat&amp;logo=git&amp;logoColor=white&amp;color=0080ff" alt="last-commit">
 </p>
 
 <p align="center">
@@ -49,7 +49,7 @@
 
 <p align="center">
     <a href="https://guard-core.com">Website</a> &middot;
-    <a href="https://rennf93.github.io/flaskapi-guard/latest/">Docs</a> &middot;
+    <a href="https://guard-core.github.io/flaskapi-guard/latest/">Docs</a> &middot;
     <a href="https://playground.guard-core.com">Playground</a> &middot;
     <a href="https://app.guard-core.com">Dashboard</a> &middot;
     <a href="https://discord.gg/ZW7ZJbjMkK">Discord</a>
@@ -59,7 +59,7 @@
 
 # Documentation
 
-📚 **[Documentation](https://rennf93.github.io/flaskapi-guard)** - Full technical documentation and deep dive into its inner workings.
+📚 **[Documentation](https://guard-core.github.io/flaskapi-guard)** - Full technical documentation and deep dive into its inner workings.
 
 ___
 
@@ -71,24 +71,24 @@ FlaskAPI Guard is the Flask adapter for the Guard security ecosystem. Powered by
 
 | Package | Role | PyPI |
 |---|---|---|
-| [guard-core](https://github.com/rennf93/guard-core) | Framework-agnostic security engine | [![PyPI](https://img.shields.io/pypi/v/guard-core)](https://pypi.org/project/guard-core/) |
-| [guard-agent](https://github.com/rennf93/guard-agent) | Telemetry agent | [![PyPI](https://img.shields.io/pypi/v/guard-agent)](https://pypi.org/project/guard-agent/) |
-| [fastapi-guard](https://github.com/rennf93/fastapi-guard) | FastAPI / Starlette adapter | [![PyPI](https://img.shields.io/pypi/v/fastapi-guard)](https://pypi.org/project/fastapi-guard/) |
-| [flaskapi-guard](https://github.com/rennf93/flaskapi-guard) | Flask adapter (this package) | [![PyPI](https://img.shields.io/pypi/v/flaskapi-guard)](https://pypi.org/project/flaskapi-guard/) |
-| [djapi-guard](https://github.com/rennf93/djapi-guard) | Django adapter | [![PyPI](https://img.shields.io/pypi/v/djapi-guard)](https://pypi.org/project/djapi-guard/) |
-| [tornadoapi-guard](https://github.com/rennf93/tornadoapi-guard) | Tornado adapter | [![PyPI](https://img.shields.io/pypi/v/tornadoapi-guard)](https://pypi.org/project/tornadoapi-guard/) |
+| [guard-core](https://github.com/Guard-Core/guard-core) | Framework-agnostic security engine | [![PyPI](https://img.shields.io/pypi/v/guard-core)](https://pypi.org/project/guard-core/) |
+| [guard-agent](https://github.com/Guard-Core/guard-agent) | Telemetry agent | [![PyPI](https://img.shields.io/pypi/v/guard-agent)](https://pypi.org/project/guard-agent/) |
+| [fastapi-guard](https://github.com/Guard-Core/fastapi-guard) | FastAPI / Starlette adapter | [![PyPI](https://img.shields.io/pypi/v/fastapi-guard)](https://pypi.org/project/fastapi-guard/) |
+| [flaskapi-guard](https://github.com/Guard-Core/flaskapi-guard) | Flask adapter (this package) | [![PyPI](https://img.shields.io/pypi/v/flaskapi-guard)](https://pypi.org/project/flaskapi-guard/) |
+| [djapi-guard](https://github.com/Guard-Core/djapi-guard) | Django adapter | [![PyPI](https://img.shields.io/pypi/v/djapi-guard)](https://pypi.org/project/djapi-guard/) |
+| [tornadoapi-guard](https://github.com/Guard-Core/tornadoapi-guard) | Tornado adapter | [![PyPI](https://img.shields.io/pypi/v/tornadoapi-guard)](https://pypi.org/project/tornadoapi-guard/) |
 
 ### TypeScript / JavaScript
 
-Published under the [`@guardcore`](https://www.npmjs.com/org/guardcore) npm scope. Source in the [guard-core-ts](https://github.com/rennf93/guard-core-ts) monorepo. **Production-ready.**
+Published under the [`@guardcore`](https://www.npmjs.com/org/guardcore) npm scope. Source in the [guard-core-ts](https://github.com/Guard-Core/guard-core-ts) monorepo. **Production-ready.**
 
 | Package | Role | npm |
 |---|---|---|
-| [@guardcore/core](https://github.com/rennf93/guard-core-ts/tree/master/packages/core) | Core engine | [![npm](https://img.shields.io/npm/v/%40guardcore%2Fcore)](https://www.npmjs.com/package/@guardcore/core) |
-| [@guardcore/express](https://github.com/rennf93/guard-core-ts/tree/master/packages/express) | Express adapter | [![npm](https://img.shields.io/npm/v/%40guardcore%2Fexpress)](https://www.npmjs.com/package/@guardcore/express) |
-| [@guardcore/nestjs](https://github.com/rennf93/guard-core-ts/tree/master/packages/nestjs) | NestJS adapter | [![npm](https://img.shields.io/npm/v/%40guardcore%2Fnestjs)](https://www.npmjs.com/package/@guardcore/nestjs) |
-| [@guardcore/fastify](https://github.com/rennf93/guard-core-ts/tree/master/packages/fastify) | Fastify adapter | [![npm](https://img.shields.io/npm/v/%40guardcore%2Ffastify)](https://www.npmjs.com/package/@guardcore/fastify) |
-| [@guardcore/hono](https://github.com/rennf93/guard-core-ts/tree/master/packages/hono) | Hono adapter | [![npm](https://img.shields.io/npm/v/%40guardcore%2Fhono)](https://www.npmjs.com/package/@guardcore/hono) |
+| [@guardcore/core](https://github.com/Guard-Core/guard-core-ts/tree/master/packages/core) | Core engine | [![npm](https://img.shields.io/npm/v/%40guardcore%2Fcore)](https://www.npmjs.com/package/@guardcore/core) |
+| [@guardcore/express](https://github.com/Guard-Core/guard-core-ts/tree/master/packages/express) | Express adapter | [![npm](https://img.shields.io/npm/v/%40guardcore%2Fexpress)](https://www.npmjs.com/package/@guardcore/express) |
+| [@guardcore/nestjs](https://github.com/Guard-Core/guard-core-ts/tree/master/packages/nestjs) | NestJS adapter | [![npm](https://img.shields.io/npm/v/%40guardcore%2Fnestjs)](https://www.npmjs.com/package/@guardcore/nestjs) |
+| [@guardcore/fastify](https://github.com/Guard-Core/guard-core-ts/tree/master/packages/fastify) | Fastify adapter | [![npm](https://img.shields.io/npm/v/%40guardcore%2Ffastify)](https://www.npmjs.com/package/@guardcore/fastify) |
+| [@guardcore/hono](https://github.com/Guard-Core/guard-core-ts/tree/master/packages/hono) | Hono adapter | [![npm](https://img.shields.io/npm/v/%40guardcore%2Fhono)](https://www.npmjs.com/package/@guardcore/hono) |
 
 ### Rust
 
@@ -96,11 +96,11 @@ Published on crates.io. **🚧 Placeholder crates — implementation in progress
 
 | Package | Role | crates.io |
 |---|---|---|
-| [guard-core](https://github.com/rennf93/guard-core-rs) | Core engine | [![crates.io](https://img.shields.io/crates/v/guard-core)](https://crates.io/crates/guard-core) |
-| [actix-guard-rs](https://github.com/rennf93/actix-guard-rs) | Actix adapter | [![crates.io](https://img.shields.io/crates/v/actix-guard-rs)](https://crates.io/crates/actix-guard-rs) |
-| [axum-guard-rs](https://github.com/rennf93/axum-guard-rs) | Axum adapter | [![crates.io](https://img.shields.io/crates/v/axum-guard-rs)](https://crates.io/crates/axum-guard-rs) |
-| [rocket-guard-rs](https://github.com/rennf93/rocket-guard-rs) | Rocket adapter | [![crates.io](https://img.shields.io/crates/v/rocket-guard-rs)](https://crates.io/crates/rocket-guard-rs) |
-| [tower-guard-rs](https://github.com/rennf93/tower-guard-rs) | Tower adapter | [![crates.io](https://img.shields.io/crates/v/tower-guard-rs)](https://crates.io/crates/tower-guard-rs) |
+| [guard-core](https://github.com/Guard-Core/guard-core-rs) | Core engine | [![crates.io](https://img.shields.io/crates/v/guard-core)](https://crates.io/crates/guard-core) |
+| [actix-guard-rs](https://github.com/Guard-Core/actix-guard-rs) | Actix adapter | [![crates.io](https://img.shields.io/crates/v/actix-guard-rs)](https://crates.io/crates/actix-guard-rs) |
+| [axum-guard-rs](https://github.com/Guard-Core/axum-guard-rs) | Axum adapter | [![crates.io](https://img.shields.io/crates/v/axum-guard-rs)](https://crates.io/crates/axum-guard-rs) |
+| [rocket-guard-rs](https://github.com/Guard-Core/rocket-guard-rs) | Rocket adapter | [![crates.io](https://img.shields.io/crates/v/rocket-guard-rs)](https://crates.io/crates/rocket-guard-rs) |
+| [tower-guard-rs](https://github.com/Guard-Core/tower-guard-rs) | Tower adapter | [![crates.io](https://img.shields.io/crates/v/tower-guard-rs)](https://crates.io/crates/tower-guard-rs) |
 
 ___
 
@@ -825,7 +825,7 @@ ___
 
 ## Key Differences from FastAPI Guard
 
-FlaskAPI Guard is a direct port of [FastAPI Guard](https://github.com/rennf93/fastapi-guard) to the Flask/WSGI ecosystem. The security logic is identical, but adapted for Flask's synchronous model:
+FlaskAPI Guard is a direct port of [FastAPI Guard](https://github.com/Guard-Core/fastapi-guard) to the Flask/WSGI ecosystem. The security logic is identical, but adapted for Flask's synchronous model:
 
 | Aspect | FastAPI Guard | FlaskAPI Guard |
 |--------|--------------|----------------|
@@ -858,7 +858,7 @@ ___
 
 ## Author
 
-Renzo Franceschini - [rennf93@users.noreply.github.com](mailto:rennf93@users.noreply.github.com) .
+Renzo Franceschini - [contact@guard-core.com](mailto:contact@guard-core.com) .
 
 ___
 
@@ -866,7 +866,7 @@ ___
 
 - [Flask](https://flask.palletsprojects.com/)
 - [Werkzeug](https://werkzeug.palletsprojects.com/)
-- [FastAPI Guard](https://github.com/rennf93/fastapi-guard)
+- [FastAPI Guard](https://github.com/Guard-Core/fastapi-guard)
 - [IPInfo](https://ipinfo.io/)
 - [cachetools](https://cachetools.readthedocs.io/)
 - [Redis](https://redis.io/)
