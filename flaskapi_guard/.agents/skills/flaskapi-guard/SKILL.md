@@ -91,10 +91,10 @@ Decorators stack top-down and each writes a per-route `RouteConfig` the extensio
 
 ## Related Projects
 
-* [guard-core](https://github.com/rennf93/guard-core): framework-agnostic security engine (async source + `guard_core.sync` mirror) this adapter wraps.
-* [fastapi-guard](https://github.com/rennf93/fastapi-guard): FastAPI/Starlette adapter (async reference implementation).
-* [djapi-guard](https://github.com/rennf93/djapi-guard): Django middleware adapter (sync mirror).
-* [tornadoapi-guard](https://github.com/rennf93/tornadoapi-guard): Tornado handler/middleware adapter.
-* [guard-agent](https://github.com/rennf93/guard-agent): telemetry client used by `enable_agent=True`.
-* [guard-core-mcp](https://github.com/rennf93/guard-core-mcp): MCP server for config validation and docs search.
-* [guard-core-app](https://github.com/rennf93/guard-core-app): SaaS platform the agent reports to.
+* [guard-core](https://github.com/Guard-Core/guard-core): framework-agnostic security engine (async source + `guard_core.sync` mirror) this adapter wraps.
+* [fastapi-guard](https://github.com/Guard-Core/fastapi-guard): FastAPI/Starlette adapter (async reference implementation).
+* [djapi-guard](https://github.com/Guard-Core/djapi-guard): Django middleware adapter (sync mirror).
+* [tornadoapi-guard](https://github.com/Guard-Core/tornadoapi-guard): Tornado handler/middleware adapter.
+* [guard-agent](https://github.com/Guard-Core/guard-agent): telemetry client used by `enable_agent=True`.
+* [guard-core-mcp](https://github.com/Guard-Core/guard-core-mcp): MCP server for config validation and docs search.
+* [guard-core-app](https://github.com/Guard-Core/guard-core-app): SaaS platform the agent reports to.

@@ -11,12 +11,12 @@ keywords: flask, security, extension, python, ip control, rate limiting, penetra
 ![FlaskAPI Guard](assets/flaskapi_guard_legend.svg)
 
 [![PyPI version](https://badge.fury.io/py/flaskapi-guard.svg?cache=none&icon=si%3Apython&icon_color=%23008cb4)](https://badge.fury.io/py/flaskapi-guard)
-[![Release](https://github.com/rennf93/flaskapi-guard/actions/workflows/release.yml/badge.svg)](https://github.com/rennf93/flaskapi-guard/actions/workflows/release.yml)
+[![Release](https://github.com/Guard-Core/flaskapi-guard/actions/workflows/release.yml/badge.svg)](https://github.com/Guard-Core/flaskapi-guard/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/rennf93/flaskapi-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/rennf93/flaskapi-guard/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/rennf93/flaskapi-guard/actions/workflows/code-ql.yml/badge.svg)](https://github.com/rennf93/flaskapi-guard/actions/workflows/code-ql.yml)
+[![CI](https://github.com/Guard-Core/flaskapi-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/Guard-Core/flaskapi-guard/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Guard-Core/flaskapi-guard/actions/workflows/code-ql.yml/badge.svg)](https://github.com/Guard-Core/flaskapi-guard/actions/workflows/code-ql.yml)
 
-`flaskapi-guard` is a comprehensive security library for Flask applications, providing an extension to control IPs, log requests, and detect penetration attempts. It integrates seamlessly with Flask to offer robust protection against various security threats, ensuring your application remains secure and reliable. FlaskAPI Guard is a direct port of [FastAPI Guard](https://github.com/rennf93/fastapi-guard) to the Flask/WSGI ecosystem.
+`flaskapi-guard` is a comprehensive security library for Flask applications, providing an extension to control IPs, log requests, and detect penetration attempts. It integrates seamlessly with Flask to offer robust protection against various security threats, ensuring your application remains secure and reliable. FlaskAPI Guard is a direct port of [FastAPI Guard](https://github.com/Guard-Core/fastapi-guard) to the Flask/WSGI ecosystem.
 
 ___
 
@@ -93,20 +93,20 @@ ___
 
 ## Example App
 
-Inside [examples](https://github.com/rennf93/flaskapi-guard/tree/master/examples), you can find a simple example app that demonstrates how to use FlaskAPI Guard.
+Inside [examples](https://github.com/Guard-Core/flaskapi-guard/tree/master/examples), you can find a simple example app that demonstrates how to use FlaskAPI Guard.
 
 ___
 
 ## Docker Container
 
-You can also download the example app as a Docker container from [GitHub Container Registry](https://github.com/orgs/rennf93/packages/container/flaskapi-guard-example).
+You can also download the example app as a Docker container from [GitHub Container Registry](https://github.com/orgs/Guard-Core/packages/container/flaskapi-guard-example).
 
 ```bash
 # Pull the latest version
-docker pull ghcr.io/rennf93/flaskapi-guard-example:latest
+docker pull ghcr.io/guard-core/flaskapi-guard-example:latest
 
 # Or pull a specific version (matches library releases)
-docker pull ghcr.io/rennf93/flaskapi-guard-example:v4.3.2
+docker pull ghcr.io/guard-core/flaskapi-guard-example:v4.3.2
 ```
 
 ___
@@ -119,7 +119,7 @@ The easiest way to run the example app is with Docker Compose, which automatical
 
 ```bash
 # Clone the repository
-git clone https://github.com/rennf93/flaskapi-guard.git
+git clone https://github.com/Guard-Core/flaskapi-guard.git
 cd flaskapi-guard/examples
 
 # Start the app with Redis
@@ -134,14 +134,14 @@ Alternatively, you can run just the container:
 
 ```bash
 # Run with default settings
-docker run -p 8000:8000 ghcr.io/rennf93/flaskapi-guard-example:latest
+docker run -p 8000:8000 ghcr.io/guard-core/flaskapi-guard-example:latest
 
 # Run with custom Redis connection
 docker run -p 8000:8000 \
   -e REDIS_URL=redis://your-redis-host:your-redis-port \
   -e REDIS_PREFIX=your-redis-prefix \
   -e IPINFO_TOKEN=your-ipinfo-token \
-  ghcr.io/rennf93/flaskapi-guard-example:latest
+  ghcr.io/guard-core/flaskapi-guard-example:latest
 ```
 
 ### Running Locally
@@ -389,7 +389,7 @@ ___
 
 ## Key Differences from FastAPI Guard
 
-FlaskAPI Guard is a direct port of [FastAPI Guard](https://github.com/rennf93/fastapi-guard) adapted for Flask's synchronous WSGI model:
+FlaskAPI Guard is a direct port of [FastAPI Guard](https://github.com/Guard-Core/fastapi-guard) adapted for Flask's synchronous WSGI model:
 
 | Aspect | FastAPI Guard | FlaskAPI Guard |
 |--------|--------------|----------------|
@@ -409,6 +409,6 @@ ___
 ## Documentation
 
 - [Release Notes](release-notes.md)
-- [GitHub Repository](https://github.com/rennf93/flaskapi-guard)
+- [GitHub Repository](https://github.com/Guard-Core/flaskapi-guard)
 - [PyPI Package](https://pypi.org/project/flaskapi-guard/)
-- [FastAPI Guard (upstream)](https://github.com/rennf93/fastapi-guard)
+- [FastAPI Guard (upstream)](https://github.com/Guard-Core/fastapi-guard)

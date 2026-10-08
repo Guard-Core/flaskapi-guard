@@ -1,9 +1,9 @@
 site_name: Flask API Guard
 site_description: Security extension for Flask applications
-site_url: https://rennf93.github.io/flaskapi-guard/latest/
-repo_name: rennf93/flaskapi-guard
-repo_url: https://github.com/rennf93/flaskapi-guard
-edit_uri: edit/main/docs/
+site_url: https://guard-core.github.io/flaskapi-guard/latest/
+repo_name: Guard-Core/flaskapi-guard
+repo_url: https://github.com/Guard-Core/flaskapi-guard
+edit_uri: edit/master/docs/
 
 theme:
   name: material
@@ -132,7 +132,7 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/rennf93/flaskapi-guard
+      link: https://github.com/Guard-Core/flaskapi-guard
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/flaskapi-guard/
 
@@ -151,7 +151,7 @@ extra:
           data: 0
           note: >-
             Thanks for your feedback! Help us improve by using our
-            <a href="https://github.com/rennf93/flaskapi-guard/issues/new">issue tracker</a>.
+            <a href="https://github.com/Guard-Core/flaskapi-guard/issues/new">issue tracker</a>.
 
   generator: false
   meta:
@@ -162,7 +162,7 @@ extra:
     - property: og:description
       content: Comprehensive security library for Flask applications providing IP control, request logging, and penetration detection
     - property: og:image
-      content: https://rennf93.github.io/flaskapi-guard/latest/assets/flaskapi_guard_legend.svg
+      content: https://guard-core.github.io/flaskapi-guard/latest/assets/flaskapi_guard_legend.svg
     - name: keywords
       content: flask, security, extension, python, ip control, rate limiting, penetration detection
 
