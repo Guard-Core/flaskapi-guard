@@ -1,6 +1,6 @@
 site_name: Flask API Guard
 site_description: Security extension for Flask applications
-site_url: https://guard-core.github.io/flaskapi-guard/latest/
+site_url: https://guard-core.github.io/flaskapi-guard/
 repo_name: Guard-Core/flaskapi-guard
 repo_url: https://github.com/Guard-Core/flaskapi-guard
 edit_uri: edit/master/docs/
