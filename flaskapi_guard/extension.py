@@ -426,60 +426,36 @@ class FlaskAPIGuard:
         preflight = self._cors_handler.build_preflight_response(request_headers)
         return self._build_flask_preflight_response(preflight)
 
-    def _check_passthrough(
-        self,
-        guard_request: FlaskGuardRequest,
-    ) -> None:
-        assert self.validator is not None
-        if not guard_request.client_host:
-            g.guard_passthrough = True
-            return
-        if self.validator.is_path_excluded(guard_request):
-            guard_request.state.guard_exclusion_scoped = True
-        return
+    def _call_view(self, _guard_request: Any) -> FlaskGuardResponse:
+        from flask import current_app, request
 
-    def _check_security_bypass(
-        self,
-        guard_request: FlaskGuardRequest,
-        route_config: RouteConfig | None,
-    ) -> None:
-        assert self.bypass_handler is not None
-        assert self.route_resolver is not None
-        assert self.event_bus is not None
-        assert self.config is not None
-        if not route_config:
-            return
-        if not self.route_resolver.should_bypass_check("all", route_config):
-            return
-        self.event_bus.send_middleware_event(
-            event_type="security_bypass",
-            request=guard_request,
-            action_taken="all_checks_bypassed",
-            reason="Route configured to bypass all security checks",
-            bypassed_checks=list(route_config.bypassed_checks),
-            endpoint=str(guard_request.url_path),
-        )
-        if not self.config.passive_mode:
-            g.guard_passthrough = True
-        return
+        assert request.endpoint is not None
+        view = current_app.ensure_sync(current_app.view_functions[request.endpoint])
+        rv = view(**(request.view_args or {}))
+        return FlaskGuardResponse(current_app.make_response(rv))
 
-    def _before_request(self) -> Response | None:
+    def _early_response(
+        self, early: GuardResponse | None, request_headers: dict[str, str]
+    ) -> Response | None:
+        if early is None:
+            return None
+        return self._attach_cors_to_blocked(unwrap_response(early), request_headers)
+
+    def _guard_request_phase(self) -> Response | None:
         from flask import request
 
         assert self.config is not None
         assert self.bypass_handler is not None
         assert self.route_resolver is not None
-        assert self.behavioral_processor is not None
 
         init_failure = self._ensure_initialized()
+        request_headers = dict(request.headers)
         if init_failure is not None:
-            return self._attach_cors_to_blocked(init_failure, dict(request.headers))
+            return self._attach_cors_to_blocked(init_failure, request_headers)
 
         g.request_start_time = time.time()
         guard_request = FlaskGuardRequest(request)
         self._populate_guard_state(guard_request)
-
-        request_headers = dict(request.headers)
 
         preflight_response = self._handle_preflight(
             guard_request, request.method, request_headers
@@ -487,10 +463,12 @@ class FlaskAPIGuard:
         if preflight_response is not None:
             return preflight_response
 
-        self._check_passthrough(guard_request)
-
-        if getattr(g, "guard_passthrough", False):
-            return None
+        early = self._early_response(
+            self.bypass_handler.handle_passthrough(guard_request, self._call_view),
+            request_headers,
+        )
+        if early is not None:
+            return early
 
         client_ip = extract_client_ip(guard_request, self.config, self.agent_handler)
         route_config = self.route_resolver.get_route_config(guard_request)
@@ -498,21 +476,33 @@ class FlaskAPIGuard:
         g.client_ip = client_ip
         g.route_config = route_config
 
-        self._check_security_bypass(guard_request, route_config)
-
-        if getattr(g, "guard_passthrough", False):
-            return None
+        early = self._early_response(
+            self.bypass_handler.handle_security_bypass(
+                guard_request, self._call_view, route_config
+            ),
+            request_headers,
+        )
+        if early is not None:
+            return early
 
         blocking = self._execute_security_pipeline(guard_request)
         if blocking is not None:
             return self._attach_cors_to_blocked(blocking, request_headers)
 
         self._process_behavioral_usage(guard_request, client_ip, route_config)
-
         return None
+
+    def _before_request(self) -> Response | None:
+        early = self._guard_request_phase()
+        if early is None:
+            g.guard_response_pass = True
+        return early
 
     def _after_request(self, response: Response) -> Response:
         from flask import request
+
+        if not getattr(g, "guard_response_pass", False):
+            return response
 
         assert self.response_factory is not None
         assert self.behavioral_processor is not None
@@ -529,6 +519,9 @@ class FlaskAPIGuard:
             response_time,
             route_config,
             process_behavioral_rules=self.behavioral_processor.process_return_rules,
+            process_global_behavioral_rules=(
+                self.behavioral_processor.process_global_return_rules
+            ),
         )
         flask_response = unwrap_response(result)
 

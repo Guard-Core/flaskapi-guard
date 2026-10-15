@@ -1695,8 +1695,10 @@ def test_before_request_passthrough_response() -> None:
     ):
         with app.test_client() as client:
             response = client.get("/")
-            assert response.status_code == 200
-            assert response.get_json() == {"msg": "ok"}
+            assert response.status_code == 403
+            assert "Client address could not be determined" in response.get_data(
+                as_text=True
+            )
 
     with app.test_client() as client:
         baseline = client.get("/")
