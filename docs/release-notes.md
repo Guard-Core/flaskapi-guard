@@ -3,6 +3,22 @@ Release Notes
 
 ___
 
+v4.4.0 (2026-10-15)
+-------------------
+
+Engine routing parity with fastapi-guard (v4.4.0)
+-------------------------------------------------
+
+- **Changed** - Passthrough, the route all-checks bypass and the response pass now go through the guard-core engine like fastapi-guard (#40, closes #39). Passthrough uses the engine `BypassHandler.handle_passthrough`, and `@security.bypass_all()` routes use `handle_security_bypass`, which calls the real view and applies the response modifier. Excluded paths stay scoped: the checks that apply to them still run instead of being skipped.
+- **Changed (behavior)** - A request with no client address is now answered with `403` under the default `fail_secure=True`. It used to skip the security pipeline and reach the view. If you depend on the old pass-through, set `fail_secure=False` in `SecurityConfig`.
+- **Fixed** - Blocked, preflight and bypass responses no longer emit request metrics and no longer get the pass-through response pass. `_after_request` runs the engine response pass only for responses that came out of the view.
+- **Fixed** - Global behavioral return rules (`global_behavior_rules`) are now passed to the engine response pass, so they run.
+- **Added (tests)** - `tests/test_engine_parity.py` drives the extension with the Flask test client against the real engine handlers. The test that asserted the old no-client-address pass-through now asserts the `403`.
+- **Compatibility** - The `guard-core` floor stays at `>=4.1.0`. The detection and dynamic rule fixes in guard-core 4.4.0 reach this adapter by upgrading guard-core (for example `pip install -U guard-core`), with no change to this package. No public API of this adapter changed.
+- **Chore** - The sponsor button points at the maintainer's Sponsors page, the mkdocs `site_url` drops `/latest/` so canonical URLs resolve, the README markdown lint errors that blocked the docs deploy are fixed and the README was brought to content parity (#32, #35, #37, #38), a CODEOWNERS file was added and the family Discord relay workflow was added (#31, #33).
+
+___
+
 v4.3.3 (2026-10-08)
 -------------------
 
