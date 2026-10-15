@@ -14,7 +14,7 @@ Engine routing parity with fastapi-guard (v4.4.0)
 - **Fixed** - Blocked, preflight and bypass responses no longer emit request metrics and no longer get the pass-through response pass. `_after_request` runs the engine response pass only for responses that came out of the view.
 - **Fixed** - Global behavioral return rules (`global_behavior_rules`) are now passed to the engine response pass, so they run.
 - **Added (tests)** - `tests/test_engine_parity.py` drives the extension with the Flask test client against the real engine handlers. The test that asserted the old no-client-address pass-through now asserts the `403`.
-- **Compatibility** - The `guard-core` floor stays at `>=4.1.0`. The detection and dynamic rule fixes in guard-core 4.4.0 reach this adapter by upgrading guard-core (for example `pip install -U guard-core`), with no change to this package. No public API of this adapter changed.
+- **Compatibility** - The `guard-core` floor rises from `>=4.1.0` to `>=4.4.0`, so upgrading flaskapi-guard also brings the guard-core 4.4.0 detection and dynamic rule fixes (Cookie header scanned per pair, the per-request scan budget, the semantic-only header opt-out and dynamic rule versions applied over the base config). No public API of this adapter changed.
 - **Chore** - The sponsor button points at the maintainer's Sponsors page, the mkdocs `site_url` drops `/latest/` so canonical URLs resolve, the README markdown lint errors that blocked the docs deploy are fixed and the README was brought to content parity (#32, #35, #37, #38), a CODEOWNERS file was added and the family Discord relay workflow was added (#31, #33).
 
 ___
