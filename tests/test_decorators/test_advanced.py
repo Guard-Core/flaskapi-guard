@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -180,8 +181,26 @@ def test_honeypot_detection_configuration(
     assert len(route_config.custom_validators) == 1, "Should have one custom validator"
 
     validator = route_config.custom_validators[0]
-    assert hasattr(validator, "__code__")
-    assert "trap_fields" in validator.__code__.co_freevars
+    trap = expected_fields[0]
+    form = endpoint == "/form-honeypot"
+    content_type = "application/x-www-form-urlencoded" if form else "application/json"
+
+    def verdict(value: str) -> Any:
+        body = (
+            f"{trap}={value}".encode() if form else f'{{"{trap}": "{value}"}}'.encode()
+        )
+        mock_request = MagicMock()
+        mock_request.method = "POST"
+        mock_request.url_full = "http://test/"
+        mock_request.headers.get = lambda key, default="": (
+            content_type if key == "content-type" else default
+        )
+        mock_request.body.return_value = body
+        mock_request.read_body_prefix.return_value = body
+        return validator(mock_request)
+
+    assert verdict("bot").status_code == 403, "A filled trap should be rejected"
+    assert verdict("") is None, "An empty trap should pass"
 
 
 def test_honeypot_detection_basic_functionality(
@@ -223,6 +242,7 @@ def test_honeypot_form_detection(security_config: SecurityConfig) -> None:
 
     mock_request = MagicMock()
     mock_request.method = "POST"
+    mock_request.url_full = "http://test/"
     mock_request.headers.get = lambda key, default="": (
         "application/x-www-form-urlencoded" if key == "content-type" else default
     )
@@ -249,6 +269,7 @@ def test_honeypot_json_exception(security_config: SecurityConfig) -> None:
 
     mock_request = MagicMock()
     mock_request.method = "POST"
+    mock_request.url_full = "http://test/"
     mock_request.headers.get = lambda key, default="": (
         "application/json" if key == "content-type" else default
     )
@@ -274,6 +295,7 @@ def test_honeypot_json_detection(security_config: SecurityConfig) -> None:
 
     mock_request = MagicMock()
     mock_request.method = "POST"
+    mock_request.url_full = "http://test/"
     mock_request.headers.get = lambda key, default="": (
         "application/json" if key == "content-type" else default
     )
