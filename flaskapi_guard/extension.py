@@ -9,6 +9,7 @@ from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.core.behavioral import BehavioralContext, BehavioralProcessor
 from guard_core.sync.core.bypass import BypassContext, BypassHandler
 from guard_core.sync.core.checks.pipeline import SecurityCheckPipeline
+from guard_core.sync.core.checks.route_prefixes import template_route_prefix
 from guard_core.sync.core.events import MetricsCollector, SecurityEventBus
 from guard_core.sync.core.initialization import HandlerInitializer
 from guard_core.sync.core.responses import ErrorResponseFactory, ResponseContext
@@ -431,6 +432,16 @@ class FlaskAPIGuard:
                 (current_app.view_functions.get(endpoint), _path_params(args))
             ] = None
         return tuple(identities)
+
+    def static_route_prefixes(self) -> tuple[str, ...]:
+        from flask import current_app, has_app_context
+
+        if not has_app_context():
+            return ("/",)
+        return tuple(
+            template_route_prefix(rule.rule)
+            for rule in current_app.url_map.iter_rules()
+        )
 
     def _handle_preflight(
         self,
