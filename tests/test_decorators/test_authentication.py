@@ -198,6 +198,45 @@ def test_missing_headers_blocked(
 
 
 @pytest.mark.parametrize(
+    "endpoint,method,header,handler_message",
+    [
+        (
+            "/api-key-default",
+            "get",
+            "X-API-Key",
+            "API key required (default header)",
+        ),
+        (
+            "/api-key-custom",
+            "post",
+            "Authorization",
+            "API key required (custom header)",
+        ),
+    ],
+)
+def test_api_key_route_refuses_a_missing_key_and_answers_a_present_one(
+    auth_decorator_app: Flask,
+    endpoint: str,
+    method: str,
+    header: str,
+    handler_message: str,
+) -> None:
+    """A request without the key never reaches the handler, one with it does."""
+    with auth_decorator_app.test_client() as client:
+        forwarded = {"X-Forwarded-For": "127.0.0.1"}
+
+        missing = getattr(client, method)(endpoint, headers=forwarded)
+        assert missing.status_code in (400, 401)
+        assert handler_message not in missing.data.decode()
+
+        present = getattr(client, method)(
+            endpoint, headers={**forwarded, header: "test-key"}
+        )
+        assert present.status_code == 200
+        assert present.get_json()["message"] == handler_message
+
+
+@pytest.mark.parametrize(
     "endpoint,headers,expected_message,description",
     [
         (
