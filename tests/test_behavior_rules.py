@@ -1,8 +1,11 @@
 import itertools
 from typing import Any
+from unittest.mock import Mock
 
+import pytest
 from flask import Flask
 from guard_core.models import BehaviorRuleConfig
+from guard_core.sync.handlers.behavior_handler import BehaviorRule
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.extension import FlaskAPIGuard
@@ -28,6 +31,11 @@ def _app(config: SecurityConfig) -> Flask:
     app.config["TESTING"] = True
     decorator = SecurityDecorator(config)
 
+    @app.route("/limited")
+    @decorator.usage_monitor(max_calls=2, window=60, action="throttle")
+    def limited() -> dict[str, bool]:
+        return {"ok": True}
+
     @app.route("/missing")
     def missing() -> tuple[dict[str, str], int]:
         return {"error": "gone"}, 404
@@ -48,6 +56,35 @@ def _responses(config: SecurityConfig, paths: list[str]) -> list[tuple[int, Any]
     return [(r.status_code, r.headers.get("Retry-After")) for r in responses]
 
 
+def test_route_throttle_answers_429_with_retry_after() -> None:
+    responses = _responses(_config(), ["/limited"] * 4)
+    assert [status for status, _ in responses] == [200, 200, 429, 429]
+    assert [retry is None for _, retry in responses] == [True, True, False, False]
+    assert all(1 <= int(retry) <= 60 for _, retry in responses[2:])
+
+
+def test_global_throttle_covers_unrouted_paths() -> None:
+    config = _config(
+        global_behavior_rules=(
+            BehaviorRuleConfig(
+                rule_type="usage", threshold=2, window=60, action="throttle"
+            ),
+        )
+    )
+    responses = _responses(config, ["/nope-1", "/nope-2", "/nope-3"])
+    assert [status for status, _ in responses] == [404, 404, 429]
+
+
+def test_throttled_requests_still_count_toward_a_global_ban_rule() -> None:
+    config = _config(
+        global_behavior_rules=(
+            BehaviorRuleConfig(rule_type="usage", threshold=3, window=60, action="ban"),
+        )
+    )
+    statuses = [status for status, _ in _responses(config, ["/limited"] * 5)]
+    assert statuses == [200, 200, 429, 429, 403]
+
+
 def test_global_return_rule_halves_its_threshold_after_a_detection_hit() -> None:
     config = _config(
         enable_penetration_detection=True,
@@ -65,3 +102,38 @@ def test_global_return_rule_halves_its_threshold_after_a_detection_hit() -> None
     paths = ["/ping?q=<script>alert(1)</script>"] + ["/missing"] * 4 + ["/ping"]
     statuses = [status for status, _ in _responses(config, paths)]
     assert statuses[1:] == [404, 404, 404, 403, 403]
+
+
+def test_decorator_usage_rules_wrapper_returns_the_throttle_response() -> None:
+    app = Flask(__name__)
+    guard = FlaskAPIGuard(app, config=_config())
+    request = Mock()
+    request.method = "GET"
+    request.state.guard_decorator = None
+    request.state.guard_route_id = "test.throttled"
+    request.state.guard_exclusion_scoped = False
+    route_config = Mock()
+    route_config.behavior_rules = [
+        BehaviorRule("usage", threshold=1, window=60, action="throttle")
+    ]
+    statuses = []
+    for _ in range(2):
+        request.state.guard_behavior_request_recorded = False
+        with app.app_context():
+            response = guard._process_decorator_usage_rules(
+                request, "127.0.0.1", route_config
+            )
+        statuses.append(None if response is None else response.status_code)
+    assert statuses == [None, 429]
+
+
+@pytest.mark.parametrize("client_ip", ["", "127.0.0.1"])
+def test_requests_without_rules_skip_the_usage_call(
+    client_ip: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app = Flask(__name__)
+    guard = FlaskAPIGuard(app, config=_config())
+    usage = Mock()
+    monkeypatch.setattr(guard.behavioral_processor, "process_usage_rules", usage)
+    assert guard._process_behavioral_usage(Mock(), client_ip, None) is None
+    usage.assert_not_called()

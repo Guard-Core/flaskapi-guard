@@ -66,6 +66,7 @@ class FlaskAPIGuard:
         self.validator: RequestValidator | None = None
         self.bypass_handler: BypassHandler | None = None
         self.behavioral_processor: BehavioralProcessor | None = None
+        self._global_throttle_rules = False
         self._cors_handler: CorsHandler | None = None
         self._app: Flask | None = None
         self._initialized: bool = False
@@ -200,6 +201,9 @@ class FlaskAPIGuard:
             middleware=self,
         )
         self.behavioral_processor = BehavioralProcessor(behavioral_context)
+        self._global_throttle_rules = any(
+            rule.action == "throttle" for rule in self.config.global_behavior_rules
+        )
 
     def init_app(self, app: Flask, config: SecurityConfig | None = None) -> None:
         self._resolve_config(config)
@@ -392,12 +396,15 @@ class FlaskAPIGuard:
         guard_request: FlaskGuardRequest,
         client_ip: str,
         route_config: RouteConfig | None,
-    ) -> None:
+    ) -> Response | None:
         assert self.behavioral_processor is not None
-        if route_config and route_config.behavior_rules and client_ip:
-            self.behavioral_processor.process_usage_rules(
-                guard_request, client_ip, route_config
-            )
+        has_route_rules = route_config is not None and bool(route_config.behavior_rules)
+        if not client_ip or not (has_route_rules or self._global_throttle_rules):
+            return None
+        refused = self.behavioral_processor.process_usage_rules(
+            guard_request, client_ip, route_config
+        )
+        return None if refused is None else unwrap_response(refused)
 
     def _populate_guard_state(self, guard_request: FlaskGuardRequest) -> None:
         from flask import current_app, request
@@ -524,7 +531,11 @@ class FlaskAPIGuard:
         if blocking is not None:
             return self._attach_cors_to_blocked(blocking, request_headers)
 
-        self._process_behavioral_usage(guard_request, client_ip, route_config)
+        throttled = self._process_behavioral_usage(
+            guard_request, client_ip, route_config
+        )
+        if throttled is not None:
+            return self._attach_cors_to_blocked(throttled, request_headers)
         return None
 
     def _before_request(self) -> Response | None:
@@ -612,12 +623,13 @@ class FlaskAPIGuard:
 
     def _process_decorator_usage_rules(
         self, request: Any, client_ip: str, route_config: RouteConfig
-    ) -> None:
+    ) -> Response | None:
         assert self.behavioral_processor is not None
         guard_request = FlaskGuardRequest(request)
-        self.behavioral_processor.process_usage_rules(
+        refused = self.behavioral_processor.process_usage_rules(
             guard_request, client_ip, route_config
         )
+        return None if refused is None else unwrap_response(refused)
 
     def _process_decorator_return_rules(
         self,
