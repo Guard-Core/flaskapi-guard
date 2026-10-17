@@ -613,6 +613,6 @@ def test_route_specific_rate_limit_with_redis() -> None:
                 )
                 assert mock_check.call_count >= 2
                 route_call = mock_check.call_args_list[0]
-                assert route_call[1]["endpoint_path"] == "/test"
+                assert route_call[1]["endpoint_path"] == route_id
                 assert route_call[1]["rate_limit"] == 5
                 assert route_call[1]["rate_limit_window"] == 60

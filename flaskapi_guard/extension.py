@@ -34,6 +34,10 @@ from flaskapi_guard.adapters import (
 )
 
 
+def _path_params(values: dict[str, Any]) -> tuple[tuple[str, str], ...]:
+    return tuple(sorted((name, str(value)) for name, value in values.items()))
+
+
 class FlaskAPIGuard:
     def __init__(
         self,
@@ -408,6 +412,25 @@ class FlaskAPIGuard:
         route_id = getattr(view_func, "_guard_route_id", None)
         if route_id is not None:
             guard_request.state.guard_route_id = route_id
+        if getattr(self.security_pipeline, "needs_route_identity", False):
+            guard_request.state.guard_route_identity = (
+                view_func,
+                _path_params(request.view_args or {}),
+            )
+
+    def resolve_route(
+        self, path: str
+    ) -> tuple[tuple[Any, tuple[tuple[str, str], ...]], ...]:
+        from flask import current_app
+
+        url_adapter = current_app.url_map.bind("")
+        identities: dict[tuple[Any, tuple[tuple[str, str], ...]], None] = {}
+        for method in url_adapter.allowed_methods(path):
+            endpoint, args = url_adapter.match(path, method=method)
+            identities[
+                (current_app.view_functions.get(endpoint), _path_params(args))
+            ] = None
+        return tuple(identities)
 
     def _handle_preflight(
         self,
