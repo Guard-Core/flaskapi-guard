@@ -1,5 +1,6 @@
 import logging
 import time
+from collections.abc import Mapping
 from typing import Any, cast
 
 from flask import Flask, Response, g
@@ -35,7 +36,7 @@ from flaskapi_guard.adapters import (
 )
 
 
-def _path_params(values: dict[str, Any]) -> tuple[tuple[str, str], ...]:
+def _path_params(values: Mapping[str, Any]) -> tuple[tuple[str, str], ...]:
     return tuple(sorted((name, str(value)) for name, value in values.items()))
 
 
