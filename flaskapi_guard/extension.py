@@ -402,13 +402,12 @@ class FlaskAPIGuard:
         if not view_func:
             guard_request.state.guard_route_unresolved = True
             return
-        route_id = getattr(view_func, "_guard_route_id", None)
-        if route_id is None:
-            return
-        guard_request.state.guard_route_id = route_id
         guard_request.state.guard_endpoint_id = (
             f"{view_func.__module__}.{view_func.__qualname__}"
         )
+        route_id = getattr(view_func, "_guard_route_id", None)
+        if route_id is not None:
+            guard_request.state.guard_route_id = route_id
 
     def _handle_preflight(
         self,

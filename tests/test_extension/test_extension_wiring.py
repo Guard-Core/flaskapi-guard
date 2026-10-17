@@ -76,6 +76,9 @@ def test_populate_guard_state_marks_unmatched_request() -> None:
         ext._populate_guard_state(guard_request)
         assert not hasattr(guard_request.state, "guard_route_unresolved")
         assert not hasattr(guard_request.state, "guard_route_id")
+        assert guard_request.state.guard_endpoint_id == (
+            f"{known.__module__}.{known.__qualname__}"
+        )
 
 
 def test_populate_guard_state_marks_endpoint_without_view_function() -> None:
