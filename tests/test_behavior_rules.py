@@ -118,7 +118,6 @@ def test_decorator_usage_rules_wrapper_returns_the_throttle_response() -> None:
     ]
     statuses = []
     for _ in range(2):
-        request.state.guard_behavior_request_recorded = False
         with app.app_context():
             response = guard._process_decorator_usage_rules(
                 request, "127.0.0.1", route_config
