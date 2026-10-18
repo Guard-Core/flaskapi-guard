@@ -620,6 +620,7 @@ def test_rate_limit_reset_with_redis_errors(
 
     with (
         patch.object(rate_handler.redis_handler, "keys", mock_keys),
+        patch.object(rate_handler.redis_handler, "delete_pattern", mock_keys),
         patch.object(logging.Logger, "error") as mock_logger,
     ):
         rate_handler.reset()
