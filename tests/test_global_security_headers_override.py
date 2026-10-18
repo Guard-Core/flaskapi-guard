@@ -54,7 +54,7 @@ def test_the_global_configure_reaches_a_guarded_app() -> None:
     client = app.test_client()
     assert client.get("/x").headers["Content-Security-Policy"].endswith("app.example")
 
-    security_headers_manager.configure(csp=GLOBAL_CSP)
+    security_headers_manager.configure(csp=GLOBAL_CSP, override_apps=True)
 
     for path in ("/x", "/y"):
         response = client.get(path)
@@ -98,3 +98,13 @@ def test_building_a_second_app_does_not_override_the_first() -> None:
         .headers["Content-Security-Policy"]
         .endswith("global.example")
     )
+
+
+def test_a_call_without_override_apps_does_not_reach_a_guarded_app() -> None:
+    app, _ = _app(_config())
+    client = app.test_client()
+    client.get("/x")
+
+    security_headers_manager.configure(csp=GLOBAL_CSP)
+
+    assert client.get("/x").headers["Content-Security-Policy"].endswith("app.example")
