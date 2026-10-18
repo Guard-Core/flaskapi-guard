@@ -573,10 +573,14 @@ def test_route_specific_extension_validations(
             assert response.status_code == expected_status
 
 
-def test_route_specific_rate_limit_with_redis() -> None:
+def test_route_specific_rate_limit_counts_apart_from_the_global_limit() -> None:
     app = Flask(__name__)
-    config = SecurityConfig(enable_redis=True, redis_url="redis://localhost:6379")
-    config.enable_penetration_detection = False
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        rate_limit=1000,
+        rate_limit_window=60,
+    )
 
     decorator = SecurityDecorator(config)
 
@@ -588,6 +592,10 @@ def test_route_specific_rate_limit_with_redis() -> None:
     def test_endpoint() -> str:
         return "ok"
 
+    @app.route("/open")
+    def open_endpoint() -> str:
+        return "ok"
+
     route_id = f"{test_endpoint.__module__}.{test_endpoint.__qualname__}"
     decorator._route_configs[route_id] = route_config
     cast(Any, test_endpoint)._guard_route_id = route_id
@@ -596,23 +604,9 @@ def test_route_specific_rate_limit_with_redis() -> None:
     guard = FlaskAPIGuard(app, config=config)
     guard.set_decorator_handler(decorator)
 
-    mock_redis_handler = Mock()
-    guard.redis_handler = mock_redis_handler
-
     with app.test_client() as client:
-        with patch.object(
-            guard.rate_limit_handler, "check_rate_limit", return_value=None
-        ) as mock_check:
-            with patch(
-                "guard_core.sync.core.checks.helpers.detect_penetration_attempt",
-                return_value=DetectionResult(is_threat=False, trigger_info=""),
-            ):
-                client.get(
-                    "/test",
-                    headers={"X-Forwarded-For": "127.0.0.1"},
-                )
-                assert mock_check.call_count >= 2
-                route_call = mock_check.call_args_list[0]
-                assert route_call[1]["endpoint_path"] == route_id
-                assert route_call[1]["rate_limit"] == 5
-                assert route_call[1]["rate_limit_window"] == 60
+        limited = [client.get("/test").status_code for _ in range(7)]
+        open_codes = [client.get("/open").status_code for _ in range(7)]
+
+    assert limited == [200] * 5 + [429] * 2
+    assert open_codes == [200] * 7

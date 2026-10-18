@@ -36,7 +36,7 @@ def test_rate_limiting() -> None:
         rate_limit_window=1,
         enable_rate_limiting=True,
     )
-    FlaskAPIGuard(app, config=config)
+    guard = FlaskAPIGuard(app, config=config)
 
     @app.route("/")
     def read_root() -> dict[str, str]:
@@ -52,8 +52,8 @@ def test_rate_limiting() -> None:
         response = client.get("/")
         assert response.status_code == 429
 
-        handler = rate_limit_handler(config)
-        handler.reset()
+        assert guard.rate_limit_handler is not None
+        guard.rate_limit_handler.reset()
 
         response = client.get("/")
         assert response.status_code == 200
@@ -574,10 +574,11 @@ def test_rate_limiting_with_redis(security_config_redis: SecurityConfig) -> None
     security_config_redis.rate_limit_window = 10
     security_config_redis.whitelist = ()
 
-    rate_handler = rate_limit_handler(security_config_redis)
-    rate_handler.reset()
+    cleanup = redis_handler(security_config_redis)
+    cleanup.initialize()
+    cleanup.delete_pattern("rate_limit:rate:*")
 
-    FlaskAPIGuard(app, config=security_config_redis)
+    guard = FlaskAPIGuard(app, config=security_config_redis)
 
     @app.route("/")
     def read_root() -> dict[str, str]:
@@ -593,7 +594,9 @@ def test_rate_limiting_with_redis(security_config_redis: SecurityConfig) -> None
         response = client.get("/")
         assert response.status_code == 429
 
-        rate_handler.reset()
+        assert guard.rate_limit_handler is not None
+        guard.rate_limit_handler.reset()
+        guard.rate_limit_handler.initialize_redis(guard.redis_handler)
 
         response = client.get("/")
         assert response.status_code == 200
@@ -746,12 +749,35 @@ def test_rate_limiter_deque_cleanup(security_config: SecurityConfig) -> None:
     assert all(ts >= window_start for ts in handler.request_timestamps[client_ip])
 
 
+def _create_error_response(status_code: int, message: str) -> FlaskGuardResponse:
+    return FlaskGuardResponse(Response(message, status=status_code))
+
+
+def _three_checks(app: Flask, handler: Any) -> list[Any]:
+    with app.test_request_context("/"):
+        from flask import request
+
+        guard_request = FlaskGuardRequest(request)
+        return [
+            handler.check_rate_limit(
+                guard_request, "192.168.1.1", _create_error_response
+            )
+            for _ in range(3)
+        ]
+
+
+def _evalsha_calls(handler: Any) -> int:
+    with handler.redis_handler.get_connection() as conn:
+        stats = conn.info("commandstats").get("cmdstat_evalsha", {})
+    return int(stats.get("calls", 0))
+
+
 def test_lua_script_execution(security_config_redis: SecurityConfig) -> None:
-    """Test that the Lua script is executed properly for rate limiting with Redis"""
+    """The Lua script is loaded and used for rate limiting with Redis"""
     app = Flask(__name__)
     config = security_config_redis
     config.rate_limit = 2
-    config.rate_limit_window = 1
+    config.rate_limit_window = 60
     config.enable_rate_limiting = True
 
     guard = FlaskAPIGuard(app, config=config)
@@ -759,47 +785,27 @@ def test_lua_script_execution(security_config_redis: SecurityConfig) -> None:
     handler = guard.rate_limit_handler
     assert handler is not None
 
-    with patch.object(handler.redis_handler, "get_connection") as mock_get_connection:
-        mock_conn = MagicMock()
-        mock_conn.evalsha = MagicMock(return_value=1)
+    try:
+        assert handler.rate_limit_script_sha is not None
+        before = _evalsha_calls(handler)
+        results = _three_checks(app, handler)
+        after = _evalsha_calls(handler)
 
-        mock_context = MagicMock()
-        mock_context.__enter__ = MagicMock(return_value=mock_conn)
-        mock_context.__exit__ = MagicMock(return_value=False)
-        mock_get_connection.return_value = mock_context
-
-        handler.rate_limit_script_sha = "test_script_sha"
-
-        def create_error_response(status_code: int, message: str) -> FlaskGuardResponse:
-            return FlaskGuardResponse(Response(message, status=status_code))
-
-        with app.test_request_context("/"):
-            from flask import request
-
-            guard_request = FlaskGuardRequest(request)
-            result = handler.check_rate_limit(
-                guard_request, "192.168.1.1", create_error_response
-            )
-            assert result is None
-
-            mock_conn.evalsha.assert_called_once()
-
-            mock_conn.evalsha.reset_mock()
-            mock_conn.evalsha.return_value = 3
-
-            result = handler.check_rate_limit(
-                guard_request, "192.168.1.1", create_error_response
-            )
-            assert result is not None
-            assert result.status_code == 429
+        assert results[0] is None
+        assert results[1] is None
+        assert results[2] is not None
+        assert results[2].status_code == 429
+        assert after - before >= 3
+    finally:
+        handler.redis_handler.delete_pattern("rate_limit:rate:*")
 
 
 def test_fallback_to_pipeline(security_config_redis: SecurityConfig) -> None:
-    """Test fallback to pipeline if Lua script fails"""
+    """Rate limiting still works on Redis when the Lua script is not loaded"""
     app = Flask(__name__)
     config = security_config_redis
     config.rate_limit = 2
-    config.rate_limit_window = 1
+    config.rate_limit_window = 60
     config.enable_rate_limiting = True
 
     guard = FlaskAPIGuard(app, config=config)
@@ -807,70 +813,20 @@ def test_fallback_to_pipeline(security_config_redis: SecurityConfig) -> None:
     handler = guard.rate_limit_handler
     assert handler is not None
 
-    with patch.object(handler.redis_handler, "get_connection") as mock_get_connection:
-        mock_conn = MagicMock()
-
-        mock_pipeline = Mock()
-        mock_pipeline.zadd = Mock()
-        mock_pipeline.zremrangebyscore = Mock()
-        mock_pipeline.zcard = Mock()
-        mock_pipeline.expire = Mock()
-
-        mock_pipeline.execute = Mock(
-            side_effect=[
-                [0, 0, 1, True],  # zadd, zrem, zcard (1), expire results
-                [0, 0, 3, True],  # zadd, zrem, zcard (3), expire results
-            ]
-        )
-
-        mock_conn.pipeline = Mock(return_value=mock_pipeline)
-
-        mock_context = MagicMock()
-        mock_context.__enter__ = MagicMock(return_value=mock_conn)
-        mock_context.__exit__ = MagicMock(return_value=False)
-        mock_get_connection.return_value = mock_context
-
+    try:
         handler.rate_limit_script_sha = None
+        before = _evalsha_calls(handler)
+        results = _three_checks(app, handler)
+        after = _evalsha_calls(handler)
 
-        def create_error_response(status_code: int, message: str) -> FlaskGuardResponse:
-            return FlaskGuardResponse(Response(message, status=status_code))
-
-        with app.test_request_context("/"):
-            from flask import request
-
-            guard_request = FlaskGuardRequest(request)
-            result = handler.check_rate_limit(
-                guard_request, "192.168.1.1", create_error_response
-            )
-            assert result is None
-
-            mock_conn.pipeline.assert_called_once()
-            mock_pipeline.zadd.assert_called_once()
-            mock_pipeline.zremrangebyscore.assert_called_once()
-            mock_pipeline.zcard.assert_called_once()
-            mock_pipeline.expire.assert_called_once()
-            mock_pipeline.execute.assert_called_once()
-
-            mock_conn.pipeline.reset_mock()
-            mock_pipeline.zadd.reset_mock()
-            mock_pipeline.zremrangebyscore.reset_mock()
-            mock_pipeline.zcard.reset_mock()
-            mock_pipeline.expire.reset_mock()
-            mock_pipeline.execute.reset_mock()
-
-            result = handler.check_rate_limit(
-                guard_request, "192.168.1.1", create_error_response
-            )
-            assert result is not None
-            assert result.status_code == 429
-            assert result.body == b"Too many requests"
-
-            mock_conn.pipeline.assert_called_once()
-            mock_pipeline.zadd.assert_called_once()
-            mock_pipeline.zremrangebyscore.assert_called_once()
-            mock_pipeline.zcard.assert_called_once()
-            mock_pipeline.expire.assert_called_once()
-            mock_pipeline.execute.assert_called_once()
+        assert results[0] is None
+        assert results[1] is None
+        assert results[2] is not None
+        assert results[2].status_code == 429
+        assert results[2].body == b"Too many requests"
+        assert after == before
+    finally:
+        handler.redis_handler.delete_pattern("rate_limit:rate:*")
 
 
 def test_rate_limiter_redis_errors(security_config_redis: SecurityConfig) -> None:
@@ -999,14 +955,11 @@ def test_ipv6_rate_limiting(
     config.blocked_countries = frozenset({})
     config.enable_penetration_detection = False
 
-    FlaskAPIGuard(app, config=config)
+    guard = FlaskAPIGuard(app, config=config)
 
     @app.route("/")
     def read_root() -> dict[str, str]:
         return {"message": "Hello World"}
-
-    handler = rate_limit_handler(config)
-    handler.reset()
 
     with app.test_client() as client:
         response = client.get("/", headers={"X-Forwarded-For": "2001:db8::1"})
@@ -1018,8 +971,9 @@ def test_ipv6_rate_limiting(
         response = client.get("/", headers={"X-Forwarded-For": "2001:db8::1"})
         assert response.status_code == 429
 
-        handler = rate_limit_handler(config)
-        handler.reset()
+        assert guard.rate_limit_handler is not None
+        guard.rate_limit_handler.reset()
+        guard.rate_limit_handler.initialize_redis(guard.redis_handler)
 
         response = client.get("/", headers={"X-Forwarded-For": "2001:db8::1"})
         assert response.status_code == 200
