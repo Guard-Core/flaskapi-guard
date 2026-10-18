@@ -117,3 +117,20 @@ def unwrap_response(guard_response: Any) -> Response:
         status=guard_response.status_code,
         headers=dict(guard_response.headers),
     )
+
+
+def merge_vary(existing: list[str], required: str) -> str:
+    present = ", ".join(value for value in existing if value.strip())
+    if not present:
+        return required
+    tokens = {token.strip().lower() for token in present.split(",")}
+    if tokens & {required.lower(), "*"}:
+        return present
+    return f"{present}, {required}"
+
+
+def set_cors_headers(response: Response, cors_headers: Mapping[str, str]) -> None:
+    for key, value in cors_headers.items():
+        if key.lower() == "vary":
+            value = merge_vary(response.headers.getlist("Vary"), value)
+        response.headers[key] = value

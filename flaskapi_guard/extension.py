@@ -32,6 +32,7 @@ from flaskapi_guard.adapters import (
     FlaskGuardRequest,
     FlaskGuardResponse,
     FlaskResponseFactory,
+    set_cors_headers,
     unwrap_response,
 )
 
@@ -442,6 +443,11 @@ class FlaskAPIGuard:
             ] = None
         return tuple(identities)
 
+    def allowed_methods(self, path: str) -> tuple[str, ...]:
+        from flask import current_app
+
+        return tuple(current_app.url_map.bind("").allowed_methods(path))
+
     def static_route_prefixes(self) -> tuple[str, ...]:
         from flask import current_app, has_app_context
 
@@ -572,11 +578,10 @@ class FlaskAPIGuard:
         flask_response = unwrap_response(result)
 
         if self._cors_handler is not None:
-            cors_headers = self._cors_handler.build_response_headers(
-                dict(request.headers)
+            set_cors_headers(
+                flask_response,
+                self._cors_handler.build_response_headers(dict(request.headers)),
             )
-            for k, v in cors_headers.items():
-                flask_response.headers[k] = v
 
         return flask_response
 
@@ -584,9 +589,9 @@ class FlaskAPIGuard:
         self, response: Response, request_headers: dict[str, str]
     ) -> Response:
         if self._cors_handler is not None:
-            cors_headers = self._cors_handler.build_response_headers(request_headers)
-            for k, v in cors_headers.items():
-                response.headers[k] = v
+            set_cors_headers(
+                response, self._cors_handler.build_response_headers(request_headers)
+            )
         return response
 
     def _build_flask_preflight_response(
