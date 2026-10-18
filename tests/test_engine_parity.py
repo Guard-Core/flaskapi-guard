@@ -10,11 +10,16 @@ from typing import Any
 from flask import Flask
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.handlers.ipban_handler import reset_global_state
+from guard_core.sync.handlers.security_headers_handler import SecurityHeadersManager
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.extension import FlaskAPIGuard
 
 NO_CLIENT: dict[str, Any] = {"REMOTE_ADDR": None}
+
+# guard-core 4.5.0 gives a bypass(all) response the security headers; 4.4.0 gave it
+# none. The marker is the per-middleware headers manager of 4.5.0.
+BYPASS_GETS_SECURITY_HEADERS = hasattr(SecurityHeadersManager, "isolated")
 
 
 def _build(
@@ -125,7 +130,7 @@ def test_route_bypass_reaches_real_view_and_skips_response_pass() -> None:
     assert resp.headers["X-Modified"] == "1"
     assert seen == [200]
     assert metrics == []
-    assert "X-Content-Type-Options" not in resp.headers
+    assert ("X-Content-Type-Options" in resp.headers) is BYPASS_GETS_SECURITY_HEADERS
 
 
 def test_blocked_request_emits_no_request_metrics() -> None:
