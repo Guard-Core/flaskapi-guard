@@ -79,3 +79,22 @@ def test_the_response_manager_reaches_the_redis_of_its_app() -> None:
     assert guard.response_factory.security_headers_manager.redis_handler is (
         guard.redis_handler
     )
+
+
+def test_building_a_second_app_does_not_override_the_first() -> None:
+    first, _ = _app(_config())
+    second, _ = _app(_config(security_headers={"enabled": True, "csp": GLOBAL_CSP}))
+    first_client, second_client = first.test_client(), second.test_client()
+    first_client.get("/x")
+    second_client.get("/x")
+
+    assert (
+        first_client.get("/x")
+        .headers["Content-Security-Policy"]
+        .endswith("app.example")
+    )
+    assert (
+        second_client.get("/x")
+        .headers["Content-Security-Policy"]
+        .endswith("global.example")
+    )
