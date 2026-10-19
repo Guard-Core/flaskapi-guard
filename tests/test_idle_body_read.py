@@ -321,6 +321,10 @@ def _route_app() -> Flask:
     def files(name: str) -> dict[str, str]:
         return {"name": name}
 
+    @app.route("/<language>/news")
+    def news(language: str) -> dict[str, str]:
+        return {"language": language}
+
     return app
 
 
@@ -332,6 +336,7 @@ def _route_app() -> Flask:
         ("/files/shop/cart.php", 400),
         ("/missing/cart.php", 400),
         ("/shop/other.php", 400),
+        ("/language/news", 400),
     ],
 )
 def test_a_script_path_is_clean_only_when_the_app_declares_it(
