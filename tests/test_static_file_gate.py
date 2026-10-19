@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 from flask import Blueprint, Flask
@@ -79,6 +80,37 @@ def test_a_ts_or_map_file_is_clean_only_when_the_static_mount_has_it(
 
     with app.test_client() as client:
         assert client.get(path).status_code == status
+
+
+def _matches_issued_by_the_guard(
+    app: Flask, monkeypatch: pytest.MonkeyPatch, method: str, path: str
+) -> tuple[int, int]:
+    from werkzeug.routing import Map
+
+    binds: list[str] = []
+    original = Map.bind
+
+    def counting(self: Map, server_name: str, *args: Any, **kwargs: Any) -> Any:
+        if server_name == "":
+            binds.append(server_name)
+        return original(self, server_name, *args, **kwargs)
+
+    monkeypatch.setattr(Map, "bind", counting)
+    with app.test_client() as client:
+        status = client.open(path, method=method).status_code
+    return status, len(binds)
+
+
+def test_a_static_request_reuses_the_match_flask_already_made(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app = _static_app(_tree(tmp_path))
+
+    status, binds = _matches_issued_by_the_guard(
+        app, monkeypatch, "GET", "/static/real.ts"
+    )
+
+    assert (status, binds) == (200, 0)
 
 
 def test_a_catch_all_route_is_not_a_static_mount(tmp_path: Path) -> None:

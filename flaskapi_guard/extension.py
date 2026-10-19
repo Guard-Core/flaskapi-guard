@@ -450,13 +450,24 @@ class FlaskAPIGuard:
             ] = None
         return tuple(identities)
 
-    def static_file_exists(self, path: str) -> bool:
-        from flask import current_app
+    def _endpoint_and_args(self, path: str) -> tuple[str, Mapping[str, Any]] | None:
+        from flask import current_app, has_request_context, request
 
+        if has_request_context() and request.endpoint and request.path == path:
+            return request.endpoint, request.view_args or {}
         try:
             endpoint, args = current_app.url_map.bind("").match(path, method="GET")
         except HTTPException:
+            return None
+        return endpoint, args
+
+    def static_file_exists(self, path: str) -> bool:
+        from flask import current_app
+
+        matched = self._endpoint_and_args(path)
+        if matched is None:
             return False
+        endpoint, args = matched
         if endpoint == "static":
             owner: Any = current_app
         elif endpoint.endswith(".static"):
