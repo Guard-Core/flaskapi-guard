@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from collections.abc import Mapping
 from typing import Any, cast
@@ -27,6 +28,8 @@ from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 from guard_core.sync.handlers.security_headers_handler import security_headers_manager
 from guard_core.sync.protocols.middleware_protocol import SyncGuardMiddlewareProtocol
 from guard_core.sync.utils import extract_client_ip, setup_custom_logging
+from werkzeug.exceptions import HTTPException
+from werkzeug.security import safe_join
 
 from flaskapi_guard.adapters import (
     FlaskGuardRequest,
@@ -446,6 +449,26 @@ class FlaskAPIGuard:
                 (current_app.view_functions.get(endpoint), _path_params(args))
             ] = None
         return tuple(identities)
+
+    def static_file_exists(self, path: str) -> bool:
+        from flask import current_app
+
+        try:
+            endpoint, args = current_app.url_map.bind("").match(path, method="GET")
+        except HTTPException:
+            return False
+        if endpoint == "static":
+            owner: Any = current_app
+        elif endpoint.endswith(".static"):
+            owner = current_app.blueprints.get(endpoint.removesuffix(".static"))
+        else:
+            return False
+        folder = getattr(owner, "static_folder", None)
+        filename = args.get("filename")
+        if folder is None or not isinstance(filename, str):
+            return False
+        served = safe_join(os.fspath(folder), filename)
+        return served is not None and os.path.isfile(served)
 
     def allowed_methods(self, path: str) -> tuple[str, ...]:
         from flask import current_app
