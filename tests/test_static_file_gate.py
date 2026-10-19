@@ -178,3 +178,12 @@ def test_the_static_mount_benign_corpus_is_flagged_without_a_static_mount(
 
     with app.test_client() as client:
         assert client.get(f"/media/{name}").status_code == 400
+
+
+def test_a_static_endpoint_whose_folder_was_unset_answers_false(tmp_path: Path) -> None:
+    app = _static_app(_tree(tmp_path))
+    guard = _guard(app)
+    app.static_folder = None
+
+    with app.test_request_context("/"):
+        assert guard.static_file_exists("/static/real.ts") is False
