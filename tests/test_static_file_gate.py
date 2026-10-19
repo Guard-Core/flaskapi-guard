@@ -126,3 +126,55 @@ def test_a_redirect_a_missing_route_and_a_blueprint_without_a_folder_answer_fals
         assert guard.static_file_exists("/dir") is False
         assert guard.static_file_exists("/missing/x.ts") is False
         assert guard.static_file_exists("/dir/") is False
+
+
+STATIC_MOUNT_CORPUS = (
+    "hls/live/segment_000.ts",
+    "hls/live/segment_001.ts",
+    "hls/vod/720p/chunk-00042.ts",
+    "hls/vod/1080p/chunk-00001.ts",
+    "hls/audio/seg-12.ts",
+    "assets/index-4f3a9c1e.js.map",
+    "assets/vendor-b82d.js.map",
+    "assets/main.css.map",
+    "_next/static/chunks/app/page-9d8c.js.map",
+    "_next/static/chunks/webpack-1a2b.js.map",
+    "static/js/main.4f3a.chunk.js.map",
+    "static/css/main.8e1.chunk.css.map",
+    "dist/bundle.min.js.map",
+    "build/static/js/2.abc123.chunk.js.map",
+    "js/jquery.min.map",
+    "assets/ts/sample.ts",
+    "examples/demo.ts",
+)
+
+
+@pytest.mark.parametrize("name", STATIC_MOUNT_CORPUS)
+def test_the_static_mount_benign_corpus_is_clean_when_the_files_exist(
+    tmp_path: Path, name: str
+) -> None:
+    target = tmp_path / "media" / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("x")
+    app = Flask(
+        __name__, static_folder=str(tmp_path / "media"), static_url_path="/media"
+    )
+    _guard(app)
+
+    with app.test_client() as client:
+        assert client.get(f"/media/{name}").status_code == 200
+
+
+@pytest.mark.parametrize("name", STATIC_MOUNT_CORPUS)
+def test_the_static_mount_benign_corpus_is_flagged_without_a_static_mount(
+    name: str,
+) -> None:
+    app = Flask(__name__, static_folder=None)
+    _guard(app)
+
+    @app.route("/<path:filename>")
+    def anything(filename: str) -> dict[str, str]:
+        return {"path": filename}
+
+    with app.test_client() as client:
+        assert client.get(f"/media/{name}").status_code == 400
