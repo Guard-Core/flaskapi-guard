@@ -197,6 +197,7 @@ def test_honeypot_detection_configuration(
         )
         mock_request.body.return_value = body
         mock_request.read_body_prefix.return_value = body
+        mock_request.read_body_prefix_until_idle.return_value = body
         return validator(mock_request)
 
     assert verdict("bot").status_code == 403, "A filled trap should be rejected"
@@ -248,6 +249,7 @@ def test_honeypot_form_detection(security_config: SecurityConfig) -> None:
     )
     mock_request.body.return_value = b"bot_trap=filled"
     mock_request.read_body_prefix.return_value = b"bot_trap=filled"
+    mock_request.read_body_prefix_until_idle.return_value = b"bot_trap=filled"
 
     result = validator(mock_request)
     assert result.status_code == 403
@@ -301,6 +303,7 @@ def test_honeypot_json_detection(security_config: SecurityConfig) -> None:
     )
     mock_request.body.return_value = b'{"spam_check": "filled"}'
     mock_request.read_body_prefix.return_value = b'{"spam_check": "filled"}'
+    mock_request.read_body_prefix_until_idle.return_value = b'{"spam_check": "filled"}'
 
     result = validator(mock_request)
     assert result.status_code == 403

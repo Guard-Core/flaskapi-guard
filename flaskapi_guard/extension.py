@@ -418,6 +418,9 @@ class FlaskAPIGuard:
         if not view_func:
             guard_request.state.guard_route_unresolved = True
             return
+        guard_request.state.guard_route_template = getattr(
+            request.url_rule, "rule", None
+        )
         guard_request.state.guard_endpoint_id = (
             f"{view_func.__module__}.{view_func.__qualname__}"
         )

@@ -1,7 +1,69 @@
-from collections.abc import Mapping, MutableMapping
+import io
+from collections.abc import Iterator, Mapping, MutableMapping
+from contextlib import contextmanager
 from typing import Any, cast
 
 from flask import Response
+from guard_core.exceptions import BodyReadStalledError
+
+_READ_CHUNK_BYTES = 65536
+_SERVER_SOCKET_KEYS = ("werkzeug.socket", "gunicorn.socket")
+
+
+def _caused_by_timeout(error: BaseException | None) -> bool:
+    seen: set[int] = set()
+    while error is not None and id(error) not in seen:
+        if isinstance(error, TimeoutError):
+            return True
+        seen.add(id(error))
+        error = error.__cause__ or error.__context__
+    return False
+
+
+class _ReplayStream:
+    def __init__(self, prefix: bytes, rest: Any) -> None:
+        self._prefix = io.BytesIO(prefix)
+        self._rest = rest
+
+    def read(self, size: int = -1) -> bytes:
+        head = self._prefix.read(size)
+        if size is None or size < 0:
+            return head + cast(bytes, self._rest.read())
+        if len(head) == size:
+            return head
+        return head + cast(bytes, self._rest.read(size - len(head)))
+
+    def readline(self, size: int = -1) -> bytes:
+        head = self._prefix.readline(size)
+        if head.endswith(b"\n") or (size is not None and 0 <= size <= len(head)):
+            return head
+        remaining = -1 if size is None or size < 0 else size - len(head)
+        return head + cast(bytes, self._rest.readline(remaining))
+
+    def readlines(self) -> list[bytes]:
+        return list(self)
+
+    def __iter__(self) -> Iterator[bytes]:
+        while line := self.readline():
+            yield line
+
+
+@contextmanager
+def _idle_socket_timeout(
+    environ: Mapping[str, Any], idle_timeout: float
+) -> Iterator[None]:
+    server_socket = next(
+        (environ[key] for key in _SERVER_SOCKET_KEYS if key in environ), None
+    )
+    if server_socket is None:
+        yield
+        return
+    previous = server_socket.gettimeout()
+    server_socket.settimeout(idle_timeout)
+    try:
+        yield
+    finally:
+        server_socket.settimeout(previous)
 
 
 class FlaskGuardRequest:
@@ -60,6 +122,37 @@ class FlaskGuardRequest:
             return b""
         result: bytes = self._request.get_data()[:max_bytes]
         return result
+
+    def read_body_prefix_until_idle(self, max_bytes: int, idle_timeout: float) -> bytes:
+        if max_bytes <= 0:
+            return b""
+        cached = getattr(self._request, "_cached_data", None)
+        if cached is not None:
+            return cast(bytes, cached[:max_bytes])
+        stream = self._request.stream
+        chunks: list[bytes] = []
+        received = 0
+        try:
+            with _idle_socket_timeout(self._request.environ, idle_timeout):
+                while received < max_bytes:
+                    piece = stream.read(min(_READ_CHUNK_BYTES, max_bytes - received))
+                    if not piece:
+                        break
+                    chunks.append(piece)
+                    received += len(piece)
+        except Exception as exc:
+            if _caused_by_timeout(exc):
+                raise BodyReadStalledError() from exc
+            raise
+        finally:
+            prefix = b"".join(chunks)
+            self._restore_consumed_prefix(prefix, stream)
+        return prefix
+
+    def _restore_consumed_prefix(self, prefix: bytes, stream: Any) -> None:
+        environ = self._request.environ
+        environ["wsgi.input"] = _ReplayStream(prefix, environ["wsgi.input"])
+        self._request.__dict__["stream"] = _ReplayStream(prefix, stream)
 
     @property
     def state(self) -> Any:
