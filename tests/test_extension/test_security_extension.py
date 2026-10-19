@@ -1039,8 +1039,8 @@ def test_ipv6_cidr_whitelist_blacklist(
         assert response.status_code == 200
 
         response = client.get("/", headers={"X-Forwarded-For": "2001:db8:dead::beef"})
-        # In both a whitelist CIDR and the blacklist: whitelist overrides
-        assert response.status_code == 200
+        # In both a whitelist CIDR and the blacklist: the blacklist denies
+        assert response.status_code == 403
 
         response = client.get("/", headers={"X-Forwarded-For": "2001:db9::1"})
         assert response.status_code == 403
@@ -1071,8 +1071,8 @@ def test_mixed_ipv4_ipv6_handling(security_config_redis: SecurityConfig) -> None
         assert response.status_code == 200
 
         response = client.get("/", headers={"X-Forwarded-For": "192.168.1.100"})
-        # In both a whitelist CIDR and the blacklist: whitelist overrides
-        assert response.status_code == 200
+        # In both a whitelist CIDR and the blacklist: the blacklist denies
+        assert response.status_code == 403
 
         response = client.get("/", headers={"X-Forwarded-For": "::1"})
         assert response.status_code == 200
@@ -1081,8 +1081,8 @@ def test_mixed_ipv4_ipv6_handling(security_config_redis: SecurityConfig) -> None
         assert response.status_code == 200
 
         response = client.get("/", headers={"X-Forwarded-For": "2001:db8:dead::beef"})
-        # In both a whitelist CIDR and the blacklist: whitelist overrides
-        assert response.status_code == 200
+        # In both a whitelist CIDR and the blacklist: the blacklist denies
+        assert response.status_code == 403
 
 
 def test_emergency_mode_passive(security_config: SecurityConfig) -> None:
