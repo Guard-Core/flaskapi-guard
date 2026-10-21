@@ -5,6 +5,9 @@ on:
     - cron: '0 3 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   drift:
     name: Test against guard-core@master
@@ -56,7 +59,8 @@ jobs:
 
       - name: Force-install the guard-core@master wheel over the resolved one
         run: |
-          wheel=$(ls wheels/guard_core-*.whl | head -n 1)
+          wheels=(wheels/guard_core-*.whl)
+          wheel="${wheels[0]}"
           uv pip install --python .venv/bin/python --no-deps --force-reinstall "$wheel"
 
       - name: Run the flaskapi-guard test suite against guard-core@master
