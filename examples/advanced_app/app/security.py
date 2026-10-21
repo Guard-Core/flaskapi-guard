@@ -41,6 +41,7 @@ security_config = SecurityConfig(
     auto_ban_threshold=5,
     auto_ban_duration=300,
     enable_penetration_detection=True,
+    behavior_scan_response_body=True,
     enable_redis=True,
     redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379"),
     redis_prefix=os.environ.get("REDIS_PREFIX", "flaskapi_guard:"),
