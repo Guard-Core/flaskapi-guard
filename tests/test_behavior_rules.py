@@ -136,3 +136,37 @@ def test_requests_without_rules_skip_the_usage_call(
     monkeypatch.setattr(guard.behavioral_processor, "process_usage_rules", usage)
     assert guard._process_behavioral_usage(Mock(), client_ip, None) is None
     usage.assert_not_called()
+
+
+def test_usage_call_refusal_is_answered_with_cors_headers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from flask import Response
+
+    from flaskapi_guard.adapters import FlaskGuardResponse
+
+    app = Flask(__name__)
+    decorator = SecurityDecorator(_config())
+
+    @app.route("/limited")
+    @decorator.usage_monitor(max_calls=2, window=60, action="throttle")
+    def limited() -> dict[str, bool]:
+        return {"ok": True}
+
+    guard = FlaskAPIGuard(
+        app,
+        config=_config(enable_cors=True, cors_allow_origins=["https://example.com"]),
+    )
+    guard.set_decorator_handler(decorator)
+    refusal = FlaskGuardResponse(Response("slow down", status=429))
+    usage = Mock(return_value=refusal)
+    monkeypatch.setattr(guard.behavioral_processor, "process_usage_rules", usage)
+
+    response = app.test_client().get(
+        "/limited", headers={"Origin": "https://example.com"}
+    )
+
+    assert response.status_code == 429
+    assert response.get_data() == b"slow down"
+    assert response.headers["Access-Control-Allow-Origin"] == "https://example.com"
+    usage.assert_called_once()
