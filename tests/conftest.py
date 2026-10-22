@@ -14,10 +14,40 @@ from guard_core.sync.handlers.ratelimit_handler import rate_limit_handler
 from guard_core.sync.handlers.suspatterns_handler import sus_patterns_handler
 
 from flaskapi_guard.extension import FlaskAPIGuard
+from tests.redis_isolation import (
+    REDIS_PREFIX,
+    REDIS_URL,
+    delete_every_key_under_the_suite_prefix,
+    point_security_config_defaults_at_the_test_redis,
+    refuse_connections_to_the_default_redis_port,
+    refused_connections,
+)
 
 IPINFO_TOKEN = str(os.getenv("IPINFO_TOKEN"))
-REDIS_URL = str(os.getenv("REDIS_URL"))
-REDIS_PREFIX = str(os.getenv("REDIS_PREFIX"))
+
+point_security_config_defaults_at_the_test_redis()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _refuse_the_default_redis_port() -> Generator[None, None, None]:
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        refuse_connections_to_the_default_redis_port(monkeypatch)
+        yield
+
+
+@pytest.fixture(autouse=True)
+def refused_redis_connections() -> Generator[list[tuple[Any, ...]], None, None]:
+    refused_connections.clear()
+    yield refused_connections
+    attempts = list(refused_connections)
+    refused_connections.clear()
+    assert not attempts, f"the test connected to port 6379: {attempts}"
+
+
+def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
+    terminalreporter.write_line(
+        f"redis isolation: REDIS_URL={REDIS_URL} REDIS_PREFIX={REDIS_PREFIX}"
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -119,25 +149,7 @@ def security_config_redis(ipinfo_db_path: Path) -> SecurityConfig:
 
 @pytest.fixture(autouse=True)
 def redis_cleanup() -> None:
-    if not REDIS_URL or REDIS_URL == "None":
-        return
-    try:
-        import redis as redis_lib
-
-        r = redis_lib.Redis.from_url(REDIS_URL)
-        try:
-            for pattern in [
-                f"{REDIS_PREFIX}*",
-                "flaskapi_guard:*",
-                "*rate_limit:*",
-            ]:
-                keys = cast(list[Any], r.keys(pattern))
-                if keys:
-                    r.delete(*keys)
-        finally:
-            r.close()
-    except Exception:
-        pass
+    delete_every_key_under_the_suite_prefix()
 
 
 @pytest.fixture(autouse=True)
@@ -151,14 +163,6 @@ def reset_rate_limiter() -> None:
         rate_limit.reset()
     except Exception:
         pass
-
-    import redis
-
-    client = redis.from_url(REDIS_URL)
-    try:
-        client.flushdb()
-    finally:
-        client.close()
 
 
 @pytest.fixture
