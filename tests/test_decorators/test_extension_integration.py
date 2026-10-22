@@ -506,9 +506,18 @@ def test_bypass_all_security_checks_with_custom_modifier() -> None:
             {
                 "allowed_content_types": ["application/json"],
                 "headers": {"content-type": "text/plain"},
+                "body": b"plain text",
             },
             415,
             "Test route-specific content type filtering",
+        ),
+        (
+            {
+                "allowed_content_types": ["application/json"],
+                "headers": {"content-type": "text/plain"},
+            },
+            200,
+            "Test a body-less request with any content type is not filtered",
         ),
         (
             {
@@ -543,7 +552,7 @@ def test_route_specific_extension_validations(
 
     route_config = RouteConfig()
     for attr, value in test_case.items():
-        if attr != "headers":
+        if attr not in ("headers", "body"):
             setattr(route_config, attr, value)
 
     @app.route("/test", methods=["GET", "POST"])
@@ -562,13 +571,13 @@ def test_route_specific_extension_validations(
         headers = {"X-Forwarded-For": "127.0.0.1"}
         headers.update(test_case["headers"])
 
-        use_post = "max_request_size" in test_case
+        use_post = "max_request_size" in test_case or "body" in test_case
         with patch(
             "guard_core.sync.core.checks.helpers.detect_penetration_attempt",
             return_value=DetectionResult(is_threat=False, trigger_info=""),
         ):
             if use_post:
-                body = b"x" * 200
+                body = test_case.get("body", b"x" * 200)
                 response = client.post("/test", headers=headers, data=body)
             else:
                 response = client.get("/test", headers=headers)
