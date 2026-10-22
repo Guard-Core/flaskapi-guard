@@ -74,9 +74,7 @@ class SecurityCheck:
         """Execute the security check. Return Response to block, None to pass."""
         ...
 
-    def create_error_response(
-        self, status_code: int, default_message: str
-    ) -> Response:
+    def create_error_response(self, status_code: int, default_message: str) -> Response:
         """Create standardized error response."""
         ...
 ```
@@ -150,6 +148,7 @@ Each check is self-contained and follows this pattern:
 ```python
 from guard_core.sync.core.checks.base import SecurityCheck
 
+
 class ExampleCheck(SecurityCheck):
     check_name = "example_check"
 
@@ -206,7 +205,7 @@ class SecurityEventBus:
         request: Request,
         action_taken: str,
         reason: str,
-        **kwargs
+        **kwargs,
     ) -> None:
         """Send extension-specific events to agent."""
         ...
@@ -315,9 +314,7 @@ Centralized response creation, error handling, and header application.
 
 ```python
 class ErrorResponseFactory:
-    def create_error_response(
-        self, status_code: int, default_message: str
-    ) -> Response:
+    def create_error_response(self, status_code: int, default_message: str) -> Response:
         """Create standardized error response with custom message."""
         ...
 
@@ -422,9 +419,7 @@ class RequestValidator:
         """Validate if IP is a trusted proxy."""
         ...
 
-    def check_time_window(
-        self, time_restrictions: dict[str, str]
-    ) -> bool:
+    def check_time_window(self, time_restrictions: dict[str, str]) -> bool:
         """Validate time window restrictions."""
         ...
 
@@ -458,9 +453,7 @@ Handles passthrough cases and decorator-based security bypasses.
 
 ```python
 class BypassHandler:
-    def handle_passthrough(
-        self, request: Request
-    ) -> Response | None:
+    def handle_passthrough(self, request: Request) -> Response | None:
         """Handle cases that should pass through immediately."""
         ...
 
@@ -573,6 +566,7 @@ To add a custom security check:
 from flask import Request, Response, g
 from guard_core.sync.core.checks.base import SecurityCheck
 
+
 class MyCustomCheck(SecurityCheck):
     """Description of what this check does."""
 
@@ -591,9 +585,7 @@ class MyCustomCheck(SecurityCheck):
         # Your check logic
         if condition_fails:
             self.logger.warning(f"Check failed for {client_ip}")
-            return self.create_error_response(
-                403, "Custom check failed"
-            )
+            return self.create_error_response(403, "Custom check failed")
 
         return None  # Check passed
 ```
@@ -604,6 +596,7 @@ class MyCustomCheck(SecurityCheck):
 
 ```python
 from guard_core.sync.core.checks.implementations.my_custom_check import MyCustomCheck
+
 
 def _build_security_pipeline(self) -> None:
     checks = [
@@ -632,6 +625,7 @@ __all__ = [
 import pytest
 from guard_core.sync.core.checks.implementations.my_custom_check import MyCustomCheck
 
+
 def test_my_custom_check(test_extension, test_request):
     check = MyCustomCheck(test_extension)
     response = check.check(test_request)
@@ -649,6 +643,7 @@ Each module is independently testable:
 # Test a specific check
 from guard_core.sync.core.checks.implementations import IpSecurityCheck
 
+
 def test_ip_security():
     extension = create_test_extension()
     check = IpSecurityCheck(extension)
@@ -662,6 +657,7 @@ def test_ip_security():
 ```python
 # Test the pipeline
 from guard_core.sync.core.checks import SecurityCheckPipeline
+
 
 def test_pipeline():
     checks = [Check1(extension), Check2(extension)]

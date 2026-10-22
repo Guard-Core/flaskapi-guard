@@ -139,7 +139,7 @@ app = Flask(__name__)
 
 config = SecurityConfig(
     auto_ban_threshold=5,  # Ban after 5 suspicious requests
-    auto_ban_duration=3600  # Ban for 1 hour
+    auto_ban_duration=3600,  # Ban for 1 hour
 )
 
 FlaskAPIGuard(app, config=config)

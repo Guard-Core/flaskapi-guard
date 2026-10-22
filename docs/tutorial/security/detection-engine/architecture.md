@@ -145,13 +145,11 @@ for content, context in contents_to_check:
         content=content,
         ip_address=client_ip,
         context=context,
-        correlation_id=correlation_id
+        correlation_id=correlation_id,
     )
 
     if result["is_threat"]:
-        return _build_detection_hit(
-            format_trigger_info(result), result["threats"]
-        )
+        return _build_detection_hit(format_trigger_info(result), result["threats"])
 ```
 
 ### 4. Detection Implementation
@@ -170,14 +168,16 @@ def detect(self, content: str, **kwargs) -> dict[str, Any]:
     # 2. Preprocess content
     if self._preprocessor:
         processed_content = self._preprocessor.preprocess(content)
-        preserved_attacks = processed_content != content[:len(processed_content)]
+        preserved_attacks = processed_content != content[: len(processed_content)]
     else:
         processed_content = content
         preserved_attacks = False
 
     # 3. Pattern matching
     for i, pattern in enumerate(self.compiled_patterns):
-        pattern_str = self.patterns[i] if i < len(self.patterns) else str(pattern.pattern)
+        pattern_str = (
+            self.patterns[i] if i < len(self.patterns) else str(pattern.pattern)
+        )
 
         if self._compiler:
             # Use timeout-protected matching
@@ -188,19 +188,18 @@ def detect(self, content: str, **kwargs) -> dict[str, Any]:
                 if match_result.get("timeout"):
                     timeouts.append(pattern_str)
                 elif match_result.get("match"):
-                    threats.append({
-                        "type": "regex",
-                        "pattern": pattern_str,
-                        "execution_time": match_result.get("execution_time", 0)
-                    })
+                    threats.append(
+                        {
+                            "type": "regex",
+                            "pattern": pattern_str,
+                            "execution_time": match_result.get("execution_time", 0),
+                        }
+                    )
         else:
             # Fallback to direct matching
             try:
                 if pattern.search(processed_content):
-                    threats.append({
-                        "type": "regex",
-                        "pattern": pattern_str
-                    })
+                    threats.append({"type": "regex", "pattern": pattern_str})
             except Exception:
                 pass
 
@@ -208,12 +207,14 @@ def detect(self, content: str, **kwargs) -> dict[str, Any]:
     if self._semantic_analyzer and not threats:
         semantic_result = self._semantic_analyzer.analyze_content(processed_content)
         if semantic_result["score"] > self._semantic_analyzer.threshold:
-            threats.append({
-                "type": "semantic",
-                "score": semantic_result["score"],
-                "attack_types": semantic_result["attack_types"],
-                "confidence": semantic_result["confidence"]
-            })
+            threats.append(
+                {
+                    "type": "semantic",
+                    "score": semantic_result["score"],
+                    "attack_types": semantic_result["attack_types"],
+                    "confidence": semantic_result["confidence"],
+                }
+            )
 
     # 5. Performance tracking
     execution_time = time.time() - start_time
@@ -223,7 +224,7 @@ def detect(self, content: str, **kwargs) -> dict[str, Any]:
                 pattern=threat.get("pattern", "semantic"),
                 execution_time=threat.get("execution_time", execution_time),
                 matched=True,
-                timeout=False
+                timeout=False,
             )
 
     # 6. Build result
@@ -237,7 +238,7 @@ def detect(self, content: str, **kwargs) -> dict[str, Any]:
         "execution_time": execution_time,
         "detection_method": "enhanced" if self._compiler else "legacy",
         "timeouts": timeouts,
-        "correlation_id": kwargs.get("correlation_id")
+        "correlation_id": kwargs.get("correlation_id"),
     }
 ```
 
@@ -261,23 +262,23 @@ flowchart LR
 
 ```python
 {
-    "is_threat": bool,              # True if any threat detected
-    "threat_score": float,          # 0.0-1.0, highest score
-    "threats": [                    # List of detected threats
+    "is_threat": bool,  # True if any threat detected
+    "threat_score": float,  # 0.0-1.0, highest score
+    "threats": [  # List of detected threats
         {
-            "type": "regex",        # or "semantic"
-            "pattern": str,         # For regex matches
-            "score": float,         # For semantic matches
-            "execution_time": float # Pattern execution time
+            "type": "regex",  # or "semantic"
+            "pattern": str,  # For regex matches
+            "score": float,  # For semantic matches
+            "execution_time": float,  # Pattern execution time
         }
     ],
-    "context": str,                 # Where content came from
-    "original_length": int,         # Original content length
-    "processed_length": int,        # After preprocessing
-    "execution_time": float,        # Total detection time
-    "detection_method": str,        # "enhanced" or "legacy"
-    "timeouts": list[str],         # Patterns that timed out
-    "correlation_id": str | None    # Request correlation ID
+    "context": str,  # Where content came from
+    "original_length": int,  # Original content length
+    "processed_length": int,  # After preprocessing
+    "execution_time": float,  # Total detection time
+    "detection_method": str,  # "enhanced" or "legacy"
+    "timeouts": list[str],  # Patterns that timed out
+    "correlation_id": str | None,  # Request correlation ID
 }
 ```
 
@@ -289,12 +290,12 @@ The engine reads configuration from `SecurityConfig`:
 
 ```python
 # Key configuration fields
-config.enable_penetration_detection     # Enable/disable
-config.detection_compiler_timeout       # Pattern timeout
-config.detection_max_content_length     # Content limit
-config.detection_preserve_attack_patterns # Preservation
-config.detection_semantic_threshold     # Semantic threshold
-config.detection_slow_pattern_threshold # Performance threshold
+config.enable_penetration_detection  # Enable/disable
+config.detection_compiler_timeout  # Pattern timeout
+config.detection_max_content_length  # Content limit
+config.detection_preserve_attack_patterns  # Preservation
+config.detection_semantic_threshold  # Semantic threshold
+config.detection_slow_pattern_threshold  # Performance threshold
 ```
 
 ### 2. Redis Integration (Optional)
@@ -324,14 +325,8 @@ The engine prevents Regular Expression Denial of Service through:
 def safe_matcher(content: str) -> dict[str, Any] | None:
     try:
         start = time.time()
-        match = execute_in_thread(
-            pattern.search, content,
-            timeout=self.timeout
-        )
-        return {
-            "match": match,
-            "execution_time": time.time() - start
-        }
+        match = execute_in_thread(pattern.search, content, timeout=self.timeout)
+        return {"match": match, "execution_time": time.time() - start}
     except TimeoutError:
         return {"timeout": True}
 ```
@@ -379,14 +374,14 @@ stats = sus_patterns_handler.get_performance_stats()
 
 # Example output
 {
-    "slow_patterns": [...],          # Patterns exceeding threshold
-    "problematic_patterns": [...],   # Patterns with issues
+    "slow_patterns": [...],  # Patterns exceeding threshold
+    "problematic_patterns": [...],  # Patterns with issues
     "summary": {
         "total_executions": 10000,
         "average_time": 0.002,
         "timeout_rate": 0.001,
-        "match_rate": 0.05
-    }
+        "match_rate": 0.05,
+    },
 }
 ```
 
@@ -398,10 +393,10 @@ status = sus_patterns_handler.get_component_status()
 
 # Example output
 {
-    "compiler": True,           # PatternCompiler active
-    "preprocessor": True,       # ContentPreprocessor active
-    "semantic_analyzer": False, # Not configured
-    "performance_monitor": True # Always active
+    "compiler": True,  # PatternCompiler active
+    "preprocessor": True,  # ContentPreprocessor active
+    "semantic_analyzer": False,  # Not configured
+    "performance_monitor": True,  # Always active
 }
 ```
 

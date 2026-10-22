@@ -33,7 +33,9 @@ class CloudManager:
                 "Azure": set(),
             }
             cls._instance.last_updated = {
-                "AWS": None, "GCP": None, "Azure": None,
+                "AWS": None,
+                "GCP": None,
+                "Azure": None,
             }
             cls._instance.redis_handler = None
             cls._instance.agent_handler = None
@@ -76,10 +78,7 @@ initialize_redis
 
 ```python
 def initialize_redis(
-    self,
-    redis_handler: Any,
-    providers: set[str] = _ALL_PROVIDERS,
-    ttl: int = 3600
+    self, redis_handler: Any, providers: set[str] = _ALL_PROVIDERS, ttl: int = 3600
 ):
     """
     Initialize Redis integration and load IP ranges.
@@ -111,11 +110,7 @@ is_cloud_ip
 -----------
 
 ```python
-def is_cloud_ip(
-    self,
-    ip: str,
-    providers: set[str]
-) -> bool:
+def is_cloud_ip(self, ip: str, providers: set[str]) -> bool:
     """
     Check if an IP belongs to specified cloud providers.
 
@@ -139,10 +134,7 @@ from flaskapi_guard import cloud_handler
 is_aws = cloud_handler.is_cloud_ip("54.239.28.85", {"AWS"})
 
 # Check multiple providers
-is_cloud = cloud_handler.is_cloud_ip(
-    "35.186.224.25",
-    {"AWS", "GCP", "Azure"}
-)
+is_cloud = cloud_handler.is_cloud_ip("35.186.224.25", {"AWS", "GCP", "Azure"})
 
 # Refresh IP ranges manually if needed
 cloud_handler.refresh()

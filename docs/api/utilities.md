@@ -19,9 +19,7 @@ setup_custom_logging
 ---------------------
 
 ```python
-def setup_custom_logging(
-    log_file: str | None = None
-) -> logging.Logger:
+def setup_custom_logging(log_file: str | None = None) -> logging.Logger:
     """
     Setup custom logging for FlaskAPI Guard.
 
@@ -51,7 +49,7 @@ def log_activity(
     reason: str = "",
     passive_mode: bool = False,
     trigger_info: str = "",
-    level: Literal["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"] | None = "WARNING"
+    level: Literal["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"] | None = "WARNING",
 ):
     """
     Universal logging function for all types of requests and activities.
@@ -79,10 +77,7 @@ is_user_agent_allowed
 ---------------------
 
 ```python
-def is_user_agent_allowed(
-    user_agent: str,
-    config: SecurityConfig
-) -> bool:
+def is_user_agent_allowed(user_agent: str, config: SecurityConfig) -> bool:
     """
     Check if user agent is allowed.
     """
@@ -93,9 +88,7 @@ check_ip_country
 
 ```python
 def check_ip_country(
-    request: str | Request,
-    config: SecurityConfig,
-    ipinfo_db: IPInfoManager
+    request: str | Request, config: SecurityConfig, ipinfo_db: IPInfoManager
 ) -> bool:
     """
     Check if IP is from a blocked country.
@@ -107,9 +100,7 @@ is_ip_allowed
 
 ```python
 def is_ip_allowed(
-    ip: str,
-    config: SecurityConfig,
-    ipinfo_db: IPInfoManager | None = None
+    ip: str, config: SecurityConfig, ipinfo_db: IPInfoManager | None = None
 ) -> bool:
     """
     Check if IP address is allowed.
@@ -167,6 +158,7 @@ Example usage:
 from flask import request
 from guard_core.sync.utils import detect_penetration_attempt
 
+
 @app.route("/api/submit", methods=["POST"])
 def submit_data():
     result = detect_penetration_attempt(request)
@@ -174,6 +166,7 @@ def submit_data():
         logger.warning(f"Attack detected: {result.trigger_info}")
         return {"error": "Suspicious activity detected"}
     return {"success": True}
+
 
 @app.route("/api/critical", methods=["POST"])
 def critical_endpoint():
@@ -215,7 +208,7 @@ Usage Examples
 from guard_core.sync.utils import (
     setup_custom_logging,
     log_activity,
-    detect_penetration_attempt
+    detect_penetration_attempt,
 )
 
 # Setup logging (synchronous function)
@@ -230,10 +223,7 @@ log_activity(request, logger)
 
 # Log suspicious activity
 log_activity(
-    request,
-    logger,
-    log_type="suspicious",
-    reason="Suspicious pattern detected"
+    request, logger, log_type="suspicious", reason="Suspicious pattern detected"
 )
 
 # Check for penetration attempts

@@ -23,13 +23,11 @@ config = SecurityConfig(
     enable_penetration_detection=True,
     auto_ban_threshold=5,  # Ban after 5 suspicious requests
     auto_ban_duration=3600,  # Ban duration in seconds
-
     # Detection Engine configuration
     detection_compiler_timeout=2.0,  # Pattern matching timeout
     detection_max_content_length=10000,  # Max content to analyze
     detection_preserve_attack_patterns=True,  # Preserve attacks during truncation
     detection_semantic_threshold=0.7,  # Semantic detection threshold (0.0-1.0)
-
     # Performance monitoring
     detection_anomaly_threshold=3.0,  # Standard deviations for anomaly
     detection_slow_pattern_threshold=0.1,  # Slow pattern threshold (seconds)
@@ -82,7 +80,7 @@ from flaskapi_guard import sus_patterns_handler
 result = sus_patterns_handler.detect(
     content="SELECT * FROM users WHERE id=1 OR 1=1",
     ip_address="192.168.1.100",
-    context="query_param"
+    context="query_param",
 )
 
 if result["is_threat"]:
@@ -116,14 +114,13 @@ You can use the penetration detection directly in your routes:
 from guard_core.sync.utils import detect_penetration_attempt
 from flask import jsonify
 
+
 @app.route("/api/data", methods=["POST"])
 def submit_data():
     # Legacy method (still supported)
     is_suspicious, trigger_info = detect_penetration_attempt(request)
     if is_suspicious:
-        return jsonify(
-            {"error": f"Suspicious activity detected: {trigger_info}"}
-        ), 400
+        return jsonify({"error": f"Suspicious activity detected: {trigger_info}"}), 400
     # Process legitimate request
     return jsonify({"status": "success"})
 ```
@@ -135,22 +132,19 @@ from flaskapi_guard import sus_patterns_handler
 from flask import request, jsonify
 import json
 
+
 @app.route("/api/secure", methods=["POST"])
 def secure_endpoint():
     data = request.get_json()
     # Check request body with enhanced detection
     result = sus_patterns_handler.detect(
-        content=json.dumps(data),
-        ip_address=request.remote_addr,
-        context="request_body"
+        content=json.dumps(data), ip_address=request.remote_addr, context="request_body"
     )
 
     if result["is_threat"] and result["threat_score"] > 0.8:
         # High-confidence threat detected
         threat_types = [t.get("attack_type", t["type"]) for t in result["threats"]]
-        return jsonify(
-            {"error": f"Threat detected: {', '.join(threat_types)}"}
-        ), 403
+        return jsonify({"error": f"Threat detected: {', '.join(threat_types)}"}), 403
 
     # Process request
     return jsonify({"status": "success"})
@@ -164,10 +158,7 @@ Logging Suspicious Activity
 Configure logging for suspicious activities:
 
 ```python
-config = SecurityConfig(
-    custom_log_file="security.log",
-    log_level="WARNING"
-)
+config = SecurityConfig(custom_log_file="security.log", log_level="WARNING")
 ```
 
 Example log output:
@@ -240,14 +231,11 @@ from flaskapi_guard import sus_patterns_handler
 # Add custom pattern
 sus_patterns_handler.add_pattern(
     r"(?i)exec\s*\(\s*['\"].*['\"]\s*\)",  # Detect exec() calls
-    custom=True
+    custom=True,
 )
 
 # Remove pattern
-sus_patterns_handler.remove_pattern(
-    r"(?i)exec\s*\(\s*['\"].*['\"]\s*\)",
-    custom=True
-)
+sus_patterns_handler.remove_pattern(r"(?i)exec\s*\(\s*['\"].*['\"]\s*\)", custom=True)
 
 # Get all patterns
 patterns = sus_patterns_handler.get_all_patterns()

@@ -177,6 +177,7 @@ from flaskapi_guard import SecurityDecorator
 config = SecurityConfig()
 guard_deco = SecurityDecorator(config)
 
+
 # Apply to routes
 @app.route("/api/sensitive")
 @guard_deco.rate_limit(requests=5, window=300)
@@ -208,7 +209,9 @@ Decorators work seamlessly with FlaskAPIGuard:
 ```python
 # Set up extension and decorators
 FlaskAPIGuard(app, config=config)
-app.extensions["flaskapi_guard"]["guard_decorator"] = guard_deco  # Required for integration
+app.extensions["flaskapi_guard"]["guard_decorator"] = (
+    guard_deco  # Required for integration
+)
 ```
 
 ___

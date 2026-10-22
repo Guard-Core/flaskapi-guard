@@ -20,12 +20,10 @@ Add your own patterns to the detection system:
 ```python
 from flaskapi_guard import SusPatternsManager
 
+
 def setup_patterns():
     # Add custom pattern
-    SusPatternsManager.add_pattern(
-        r"malicious_pattern.*",
-        custom=True
-    )
+    SusPatternsManager.add_pattern(r"malicious_pattern.*", custom=True)
 ```
 
 ___
@@ -37,22 +35,13 @@ You can add patterns for different types of attacks:
 
 ```python
 # Custom XSS pattern
-SusPatternsManager.add_pattern(
-    r"<script\s*src=.*>",
-    custom=True
-)
+SusPatternsManager.add_pattern(r"<script\s*src=.*>", custom=True)
 
 # Custom SQL injection pattern
-SusPatternsManager.add_pattern(
-    r";\s*DROP\s+TABLE",
-    custom=True
-)
+SusPatternsManager.add_pattern(r";\s*DROP\s+TABLE", custom=True)
 
 # Custom file path pattern
-SusPatternsManager.add_pattern(
-    r"\.\.\/.*\/etc\/passwd",
-    custom=True
-)
+SusPatternsManager.add_pattern(r"\.\.\/.*\/etc\/passwd", custom=True)
 ```
 
 ___
@@ -64,10 +53,7 @@ Remove or modify existing patterns:
 
 ```python
 # Remove a custom pattern
-success = SusPatternsManager.remove_pattern(
-    r"malicious_pattern.*",
-    custom=True
-)
+success = SusPatternsManager.remove_pattern(r"malicious_pattern.*", custom=True)
 if success:
     print("Pattern removed successfully")
 else:
@@ -103,12 +89,15 @@ Test your patterns against requests:
 from guard_core.sync.utils import detect_penetration_attempt
 from flask import request, jsonify
 
+
 @app.route("/test/patterns", methods=["POST"])
 def test_patterns():
     is_suspicious, trigger_info = detect_penetration_attempt(request)
-    return jsonify({
-        "suspicious": is_suspicious,
-        "trigger_info": trigger_info,
-        "request_body": request.get_data(as_text=True)
-    })
+    return jsonify(
+        {
+            "suspicious": is_suspicious,
+            "trigger_info": trigger_info,
+            "request_body": request.get_data(as_text=True),
+        }
+    )
 ```

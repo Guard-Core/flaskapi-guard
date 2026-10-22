@@ -93,6 +93,7 @@ from flaskapi_guard import SecurityConfig
 config = SecurityConfig(redis_url="redis://localhost:6379")
 redis = RedisManager(config)
 
+
 def example():
     redis.initialize()
     with redis.get_connection() as conn:

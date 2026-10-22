@@ -20,11 +20,7 @@ Class Definition
 
 ```python
 class FlaskAPIGuard:
-    def __init__(
-        self,
-        app: Flask | None = None,
-        config: SecurityConfig | None = None
-    ):
+    def __init__(self, app: Flask | None = None, config: SecurityConfig | None = None):
         """
         Initialize the FlaskAPIGuard extension.
 
@@ -288,9 +284,7 @@ Enable Redis in SecurityConfig:
 
 ```python
 config = SecurityConfig(
-    enable_redis=True,
-    redis_url="redis://prod:6379/0",
-    redis_prefix="prod_security:"
+    enable_redis=True, redis_url="redis://prod:6379/0", redis_prefix="prod_security:"
 )
 ```
 
@@ -335,11 +329,7 @@ from flaskapi_guard import SecurityConfig
 
 app = Flask(__name__)
 
-config = SecurityConfig(
-    rate_limit=100,
-    enable_https=True,
-    enable_cors=True
-)
+config = SecurityConfig(rate_limit=100, enable_https=True, enable_cors=True)
 
 FlaskAPIGuard(app, config=config)
 ```
@@ -358,11 +348,13 @@ app = Flask(__name__)
 config = SecurityConfig(rate_limit=100)
 guard_deco = SecurityDecorator(config)
 
+
 # Apply decorators to routes
 @app.route("/api/limited")
 @guard_deco.rate_limit(requests=10, window=300)
 def limited_endpoint():
     return {"data": "limited"}
+
 
 # Add extension and set decorator
 guard = FlaskAPIGuard(app, config=config)
@@ -379,13 +371,11 @@ from flaskapi_guard import SecurityConfig
 
 guard = FlaskAPIGuard()
 
+
 def create_app():
     app = Flask(__name__)
 
-    config = SecurityConfig(
-        enable_redis=True,
-        redis_url="redis://localhost:6379"
-    )
+    config = SecurityConfig(enable_redis=True, redis_url="redis://localhost:6379")
 
     guard.init_app(app, config=config)
 

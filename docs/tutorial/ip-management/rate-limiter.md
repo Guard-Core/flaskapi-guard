@@ -26,8 +26,8 @@ app = Flask(__name__)
 
 config = SecurityConfig(
     # NOTE: enable_rate_limiting is not required, it's enabled by default
-    rate_limit=100,               # Maximum number of requests allowed
-    rate_limit_window=60,         # Time window in seconds
+    rate_limit=100,  # Maximum number of requests allowed
+    rate_limit_window=60,  # Time window in seconds
     # ... other configuration options ...
 )
 
@@ -99,7 +99,7 @@ config = SecurityConfig(
     rate_limit=100,
     rate_limit_window=60,
     redis_url="redis://localhost:6379/0",
-    redis_prefix="myapp:"  # Optional prefix for Redis keys (override default)
+    redis_prefix="myapp:",  # Optional prefix for Redis keys (override default)
 )
 ```
 
@@ -128,9 +128,7 @@ config = SecurityConfig(
     # NOTE: enable_rate_limiting is not required, it's enabled by default
     rate_limit=100,
     rate_limit_window=60,
-    custom_error_responses={
-        429: "Rate limit exceeded. Please try again later."
-    }
+    custom_error_responses={429: "Rate limit exceeded. Please try again later."},
 )
 ```
 
@@ -147,6 +145,7 @@ For advanced use cases, you can access the rate limiter directly:
 ```python
 from flaskapi_guard import rate_limit_handler
 
+
 def some_route():
     # Get a reference to the handler
     handler = rate_limit_handler(config)
@@ -162,6 +161,7 @@ You might want to reset rate limits in certain scenarios:
 
 ```python
 from flaskapi_guard import rate_limit_handler
+
 
 def reset_rate_limits_for_user(user_id: str):
     handler = rate_limit_handler(config)

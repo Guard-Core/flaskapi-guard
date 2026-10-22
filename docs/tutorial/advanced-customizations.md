@@ -116,6 +116,7 @@ Here's a complete example of a custom GeoIPHandler implementation that uses a di
 from flaskapi_guard import GeoIPHandler
 from flaskapi_guard import RedisHandlerProtocol
 
+
 class CustomGeoIPHandler:
     """Custom handler using Custom GeoIP database"""
 
@@ -140,8 +141,11 @@ class CustomGeoIPHandler:
             cached_db = self.redis.get_key("custom", "database")
             if cached_db:
                 with open(self.db_path, "wb") as f:
-                    f.write(cached_db if isinstance(cached_db, bytes)
-                            else cached_db.encode("latin-1"))
+                    f.write(
+                        cached_db
+                        if isinstance(cached_db, bytes)
+                        else cached_db.encode("latin-1")
+                    )
                 self.reader = somelibrary.Reader(self.db_path)
                 self._initialized = True
                 return

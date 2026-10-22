@@ -71,6 +71,7 @@ from flaskapi_guard import FlaskAPIGuard, SecurityConfig
 
 guard = FlaskAPIGuard()
 
+
 def create_app():
     app = Flask(__name__)
 
@@ -265,30 +266,36 @@ security = SecurityDecorator(config)
 guard = FlaskAPIGuard(app, config=config)
 guard.set_decorator_handler(security)
 
+
 @app.route("/api/limited")
 @security.rate_limit(requests=5, window=60)
 def rate_limited():
     return {"message": "This endpoint is rate limited", "limit": "5/minute"}
+
 
 @app.route("/api/protected")
 @security.require_auth(type="bearer")
 def protected():
     return {"message": "Authenticated!"}
 
+
 @app.route("/api/json-only", methods=["POST"])
 @security.content_type_filter(["application/json"])
 def json_only():
     return {"message": "JSON accepted"}
+
 
 @app.route("/api/business-hours")
 @security.time_window("09:00", "17:00", "UTC")
 def business_hours():
     return {"message": "Available during business hours only"}
 
+
 @app.route("/api/local-only")
 @security.require_ip(whitelist=["127.0.0.1", "::1", "10.0.0.0/8"])
 def local_only():
     return {"message": "Local access granted"}
+
 
 @app.route("/api/unprotected")
 @security.bypass(["all"])
@@ -341,27 +348,21 @@ config = SecurityConfig(
     # Rate limiting
     rate_limit=100,
     rate_limit_window=60,
-
     # IP management
     whitelist=["127.0.0.1", "::1"],
     blacklist=[],
-
     # Auto-banning
     auto_ban_threshold=10,
     auto_ban_duration=3600,
-
     # Redis
     enable_redis=True,
     redis_url="redis://localhost:6379",
     redis_prefix="flaskapi_guard:",
-
     # Penetration detection
     enable_penetration_detection=True,
-
     # CORS
     enable_cors=True,
     cors_allow_origins=["https://example.com"],
-
     # Security headers
     security_headers={
         "enabled": True,
@@ -370,13 +371,10 @@ config = SecurityConfig(
         "frame_options": "DENY",
         "content_type_options": "nosniff",
     },
-
     # Custom request check (sync)
     custom_request_check=lambda request: None,
-
     # Custom response modifier (sync)
     custom_response_modifier=lambda response: response,
-
     # Path exclusions
     exclude_paths=["/health", "/static", "/favicon.ico"],
 )

@@ -26,9 +26,11 @@ app = Flask(__name__)
 config = SecurityConfig()
 guard_deco = SecurityDecorator(config)
 
+
 @app.route("/api/public")
 def public_endpoint():
     return {"message": "This uses global security settings"}
+
 
 @app.route("/api/restricted")
 @guard_deco.rate_limit(requests=5, window=300)
@@ -148,7 +150,7 @@ config = SecurityConfig(
     enable_ip_banning=True,
     enable_rate_limiting=True,
     rate_limit_requests=100,
-    rate_limit_window=3600
+    rate_limit_window=3600,
 )
 
 # Create decorator instance
@@ -167,11 +169,12 @@ app.extensions["guard_decorator"] = guard_deco
 ```python
 @app.route("/api/login", methods=["POST"])
 @guard_deco.require_https()
-@guard_deco.rate_limit(requests=5, window=300)    # Stricter limit for login
+@guard_deco.rate_limit(requests=5, window=300)  # Stricter limit for login
 @guard_deco.suspicious_detection(enabled=True)
 def login():
     # Login logic here
     return {"token": "jwt_token"}
+
 
 @app.route("/api/admin")
 @guard_deco.require_ip(whitelist=["10.0.0.0/8"])  # Internal network only
@@ -198,10 +201,12 @@ This allows flexible overrides where routes can customize their security while m
 # Global: 100 requests/hour
 config = SecurityConfig(rate_limit_requests=100, rate_limit_window=3600)
 
+
 @app.route("/api/public")
 def public_endpoint():
     # Uses global: 100 requests/hour
     return {"data": "public"}
+
 
 @app.route("/api/limited")
 @guard_deco.rate_limit(requests=10, window=300)  # Override: 10 requests/5min
@@ -222,11 +227,11 @@ Apply decorators from most specific to most general:
 
 ```python
 @app.route("/api/admin/sensitive", methods=["POST"])
-@guard_deco.require_https()                         # Security requirement
-@guard_deco.require_auth(type="bearer")             # Authentication
-@guard_deco.require_ip(whitelist=["10.0.0.0/8"])    # Access control
-@guard_deco.rate_limit(requests=5, window=3600)     # Rate limiting
-@guard_deco.suspicious_detection(enabled=True)      # Monitoring
+@guard_deco.require_https()  # Security requirement
+@guard_deco.require_auth(type="bearer")  # Authentication
+@guard_deco.require_ip(whitelist=["10.0.0.0/8"])  # Access control
+@guard_deco.rate_limit(requests=5, window=3600)  # Rate limiting
+@guard_deco.suspicious_detection(enabled=True)  # Monitoring
 def admin_endpoint():
     return {"status": "admin action"}
 ```

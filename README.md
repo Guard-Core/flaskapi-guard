@@ -206,6 +206,7 @@ from flaskapi_guard import FlaskAPIGuard, SecurityConfig
 app = Flask(__name__)
 guard = FlaskAPIGuard(app, config=SecurityConfig(enable_agent=True))
 
+
 @app.route("/health/guard")
 def guard_health() -> tuple[dict, int]:
     return jsonify(guard.agent_stats), 200
@@ -282,6 +283,7 @@ config = SecurityConfig(
 # Add the security extension
 FlaskAPIGuard(app, config=config)
 
+
 @app.route("/")
 def read_root():
     return {"message": "Hello, World!"}
@@ -294,6 +296,7 @@ from flask import Flask
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig
 
 guard = FlaskAPIGuard()
+
 
 def create_app():
     app = Flask(__name__)
@@ -373,13 +376,12 @@ Detect and log potential penetration attempts using the `detect_penetration_atte
 from flask import request, jsonify
 from flaskapi_guard.utils import detect_penetration_attempt
 
+
 @app.route("/submit", methods=["POST"])
 def submit_data():
     is_suspicious, trigger_info = detect_penetration_attempt(request)
     if is_suspicious:
-        return jsonify(
-            {"error": f"Suspicious activity detected: {trigger_info}"}
-        ), 400
+        return jsonify({"error": f"Suspicious activity detected: {trigger_info}"}), 400
     return jsonify({"message": "Data submitted successfully"})
 ```
 
@@ -407,7 +409,7 @@ config = SecurityConfig(
         "hsts": {
             "max_age": 31536000,  # 1 year
             "include_subdomains": True,
-            "preload": False
+            "preload": False,
         },
         "csp": {
             "default-src": ["'self'"],
@@ -417,16 +419,14 @@ config = SecurityConfig(
             "connect-src": ["'self'", "https://api.example.com"],
             "frame-ancestors": ["'none'"],
             "base-uri": ["'self'"],
-            "form-action": ["'self'"]
+            "form-action": ["'self'"],
         },
         "frame_options": "DENY",
         "content_type_options": "nosniff",
         "xss_protection": "1; mode=block",
         "referrer_policy": "strict-origin-when-cross-origin",
         "permissions_policy": "geolocation=(), microphone=(), camera=()",
-        "custom": {
-            "X-Custom-Header": "CustomValue"
-        }
+        "custom": {"X-Custom-Header": "CustomValue"},
     }
 )
 ```
@@ -506,15 +506,18 @@ guard_deco = SecurityDecorator(config)
 guard = FlaskAPIGuard(app, config=config)
 guard.set_decorator_handler(guard_deco)
 
+
 # Apply decorators to specific routes
 @app.route("/api/public")
 def public_endpoint():
     return {"data": "public"}
 
+
 @app.route("/api/limited")
 @guard_deco.rate_limit(requests=10, window=300)  # 10 requests per 5 minutes
 def limited_endpoint():
     return {"data": "limited"}
+
 
 @app.route("/api/restricted")
 @guard_deco.require_ip(whitelist=["192.168.1.0/24"])
@@ -569,13 +572,14 @@ Combine multiple decorators for comprehensive protection:
 
 ```python
 @app.route("/api/admin/sensitive", methods=["POST"])
-@guard_deco.require_https()                        # Security requirement
-@guard_deco.require_auth(type="bearer")            # Authentication
-@guard_deco.require_ip(whitelist=["10.0.0.0/8"])   # Access control
-@guard_deco.rate_limit(requests=5, window=3600)    # Rate limiting
-@guard_deco.suspicious_detection(enabled=True)     # Monitoring
+@guard_deco.require_https()  # Security requirement
+@guard_deco.require_auth(type="bearer")  # Authentication
+@guard_deco.require_ip(whitelist=["10.0.0.0/8"])  # Access control
+@guard_deco.rate_limit(requests=5, window=3600)  # Rate limiting
+@guard_deco.suspicious_detection(enabled=True)  # Monitoring
 def admin_endpoint():
     return {"status": "admin action"}
+
 
 @app.route("/api/rewards")
 @guard_deco.usage_monitor(max_calls=50, window=3600, action="ban")
@@ -609,9 +613,12 @@ Configure trusted proxies to securely handle X-Forwarded-For headers:
 
 ```python
 config = SecurityConfig(
-    trusted_proxies=["10.0.0.1", "192.168.1.0/24"],  # List of trusted proxy IPs or CIDR ranges
-    trusted_proxy_depth=1,                           # How many proxies to expect in chain
-    trust_x_forwarded_proto=True,                    # Whether to trust X-Forwarded-Proto for HTTPS detection (default: True)
+    trusted_proxies=[
+        "10.0.0.1",
+        "192.168.1.0/24",
+    ],  # List of trusted proxy IPs or CIDR ranges
+    trusted_proxy_depth=1,  # How many proxies to expect in chain
+    trust_x_forwarded_proto=True,  # Whether to trust X-Forwarded-Proto for HTTPS detection (default: True)
 )
 ```
 
@@ -650,17 +657,13 @@ You can also use a service other than IPInfo, as long as you implement the same 
 ```python
 class CustomGeoIPHandler:
     @property
-    def is_initialized(self) -> bool:
-        ...
+    def is_initialized(self) -> bool: ...
 
-    def initialize(self) -> None:
-        ...
+    def initialize(self) -> None: ...
 
-    def initialize_redis(self, redis_handler: "RedisManager") -> None:
-        ...
+    def initialize_redis(self, redis_handler: "RedisManager") -> None: ...
 
-    def get_country(self, ip: str) -> str | None:
-        ...
+    def get_country(self, ip: str) -> str | None: ...
 
 
 config = SecurityConfig(
@@ -678,10 +681,12 @@ You can define a custom function to perform additional checks on the request usi
 from flask import Response
 from typing import Optional
 
+
 def custom_check(req) -> Optional[Response]:
     if "X-Custom-Header" not in req.headers:
         return Response("Missing custom header", status=400)
     return None
+
 
 config = SecurityConfig(
     custom_request_check=custom_check,
@@ -694,6 +699,7 @@ You can define a custom function to modify the response before it's sent using t
 
 ```python
 from flask import Response, jsonify
+
 
 def custom_modifier(response: Response) -> Response:
     # Add custom headers
@@ -710,6 +716,7 @@ def custom_modifier(response: Response) -> Response:
             pass
 
     return response
+
 
 config = SecurityConfig(
     custom_response_modifier=custom_modifier,
@@ -767,6 +774,7 @@ from flaskapi_guard import SecurityConfig, BehaviorRule
 config = SecurityConfig(
     # Global behavioral rules can be defined in config
 )
+
 
 # Per-route behavioral monitoring via decorators
 @app.route("/api/rewards")

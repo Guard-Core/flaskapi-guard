@@ -78,10 +78,11 @@ config = SecurityConfig(
     blacklist=["10.0.0.1", "2001:db8::2"],
     blocked_countries=["AR", "IT"],
     rate_limit=100,
-    custom_log_file="security.log"
+    custom_log_file="security.log",
 )
 
 FlaskAPIGuard(app, config=config)
+
 
 @app.route("/")
 def root():

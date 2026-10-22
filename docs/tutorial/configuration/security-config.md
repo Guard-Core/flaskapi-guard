@@ -131,18 +131,14 @@ Default security_headers configuration:
 ```python
 {
     "enabled": True,
-    "hsts": {
-        "max_age": 31536000,
-        "include_subdomains": True,
-        "preload": False
-    },
+    "hsts": {"max_age": 31536000, "include_subdomains": True, "preload": False},
     "csp": None,
     "frame_options": "SAMEORIGIN",
     "content_type_options": "nosniff",
     "xss_protection": "1; mode=block",
     "referrer_policy": "strict-origin-when-cross-origin",
     "permissions_policy": "geolocation=(), microphone=(), camera=()",
-    "custom": None
+    "custom": None,
 }
 ```
 
@@ -227,7 +223,6 @@ config = SecurityConfig(
 
 config = SecurityConfig(
     passive_mode=False,
-
     enable_penetration_detection=True,
     detection_compiler_timeout=2.0,
     detection_max_content_length=10000,
@@ -237,14 +232,9 @@ config = SecurityConfig(
     detection_slow_pattern_threshold=0.1,
     detection_monitor_history_size=1000,
     detection_max_tracked_patterns=1000,
-
     security_headers={
         "enabled": True,
-        "hsts": {
-            "max_age": 31536000,
-            "include_subdomains": True,
-            "preload": False
-        },
+        "hsts": {"max_age": 31536000, "include_subdomains": True, "preload": False},
         "csp": {
             "default-src": ["'self'"],
             "script-src": ["'self'", "https://cdn.example.com"],
@@ -253,27 +243,21 @@ config = SecurityConfig(
             "connect-src": ["'self'", "https://api.example.com"],
             "frame-ancestors": ["'none'"],
             "base-uri": ["'self'"],
-            "form-action": ["'self'"]
+            "form-action": ["'self'"],
         },
         "frame_options": "DENY",
         "content_type_options": "nosniff",
         "xss_protection": "1; mode=block",
         "referrer_policy": "no-referrer",
         "permissions_policy": "geolocation=(), microphone=(), camera=()",
-        "custom": {
-            "X-Custom-Header": "CustomValue"
-        }
+        "custom": {"X-Custom-Header": "CustomValue"},
     },
-
     enable_redis=True,
     redis_url="redis://localhost:6379",
-
     enable_agent=True,
     agent_api_key="your-api-key",
-
     custom_log_file="security.log",
     log_format="json",
-
     cloud_ip_refresh_interval=1800,
 )
 ```
@@ -287,9 +271,7 @@ The SecurityConfig model validates settings on initialization:
 
 ```python
 try:
-    config = SecurityConfig(
-        detection_compiler_timeout=0.05
-    )
+    config = SecurityConfig(detection_compiler_timeout=0.05)
 except ValidationError as e:
     print(f"Configuration error: {e}")
 
@@ -337,6 +319,7 @@ def validate_ip_lists(cls, v):
         else:
             ip_address(entry)
     return v
+
 
 @field_validator("block_cloud_providers", mode="before")
 def validate_cloud_providers(cls, v):

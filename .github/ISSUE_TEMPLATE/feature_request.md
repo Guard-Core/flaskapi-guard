@@ -41,9 +41,7 @@ from flaskapi_guard import FlaskAPIGuard, SecurityConfig
 app = Flask(__name__)
 
 # Your feature example here
-security_config = SecurityConfig(
-    new_feature=SomeConfiguration(...)
-)
+security_config = SecurityConfig(new_feature=SomeConfiguration(...))
 
 guard = FlaskAPIGuard(app, config=security_config)
 ```

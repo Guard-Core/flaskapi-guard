@@ -35,11 +35,7 @@ add_pattern
 
 ```python
 @classmethod
-def add_pattern(
-    cls,
-    pattern: str,
-    custom: bool = False
-) -> None:
+def add_pattern(cls, pattern: str, custom: bool = False) -> None:
     """
     Add a new pattern to the detection system.
 
@@ -58,11 +54,7 @@ remove_pattern
 
 ```python
 @classmethod
-def remove_pattern(
-    cls,
-    pattern: str,
-    custom: bool = False
-) -> bool:
+def remove_pattern(cls, pattern: str, custom: bool = False) -> bool:
     """
     Remove a pattern from the detection system.
 
@@ -96,13 +88,16 @@ Pattern Retrieval Methods
 def get_default_patterns(cls) -> list[str]:
     """Get only the default patterns loaded from YAML files."""
 
+
 @classmethod
 def get_custom_patterns(cls) -> list[str]:
     """Get only the custom patterns added at runtime."""
 
+
 @classmethod
 def get_all_patterns(cls) -> list[str]:
     """Get all registered patterns (default + custom)."""
+
 
 @classmethod
 def get_all_compiled_patterns(
@@ -172,7 +167,7 @@ def detect(
     content: str,
     ip_address: str,
     context: str = "unknown",
-    correlation_id: str | None = None
+    correlation_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Perform comprehensive threat detection with detection engine.
@@ -201,7 +196,7 @@ def detect_pattern_match(
     content: str,
     ip_address: str,
     context: str = "unknown",
-    correlation_id: str | None = None
+    correlation_id: str | None = None,
 ) -> tuple[bool, str | None]:
     """
     Legacy detection method for backward compatibility.
@@ -276,28 +271,28 @@ The `detect()` method returns a comprehensive result dictionary:
 
 ```python
 {
-    "is_threat": bool,              # True if any threat detected
-    "threat_score": float,          # 0.0-1.0, highest threat score
-    "threats": [                    # List of detected threats
+    "is_threat": bool,  # True if any threat detected
+    "threat_score": float,  # 0.0-1.0, highest threat score
+    "threats": [  # List of detected threats
         {
-            "type": "regex",        # Detection type
-            "pattern": str,         # Pattern that matched
-            "execution_time": float # Time to execute pattern
+            "type": "regex",  # Detection type
+            "pattern": str,  # Pattern that matched
+            "execution_time": float,  # Time to execute pattern
         },
         {
-            "type": "semantic",     # Heuristic detection
-            "score": float,         # Threat score
-            "attack_types": dict,   # Attack type probabilities
-            "confidence": str       # low/medium/high
-        }
+            "type": "semantic",  # Heuristic detection
+            "score": float,  # Threat score
+            "attack_types": dict,  # Attack type probabilities
+            "confidence": str,  # low/medium/high
+        },
     ],
-    "context": str,                 # Where content came from
-    "original_length": int,         # Original content length
-    "processed_length": int,        # After preprocessing
-    "execution_time": float,        # Total detection time
-    "detection_method": str,        # "enhanced" or "legacy"
-    "timeouts": list[str],         # Patterns that timed out
-    "correlation_id": str | None    # Request correlation ID
+    "context": str,  # Where content came from
+    "original_length": int,  # Original content length
+    "processed_length": int,  # After preprocessing
+    "execution_time": float,  # Total detection time
+    "detection_method": str,  # "enhanced" or "legacy"
+    "timeouts": list[str],  # Patterns that timed out
+    "correlation_id": str | None,  # Request correlation ID
 }
 ```
 
@@ -313,16 +308,10 @@ Basic Pattern Management
 from flaskapi_guard import sus_patterns_handler
 
 # Add custom pattern
-sus_patterns_handler.add_pattern(
-    r"(?i)malicious.*pattern",
-    custom=True
-)
+sus_patterns_handler.add_pattern(r"(?i)malicious.*pattern", custom=True)
 
 # Remove pattern
-success = sus_patterns_handler.remove_pattern(
-    r"(?i)malicious.*pattern",
-    custom=True
-)
+success = sus_patterns_handler.remove_pattern(r"(?i)malicious.*pattern", custom=True)
 
 # Get all patterns
 patterns = sus_patterns_handler.get_all_patterns()
@@ -337,7 +326,7 @@ result = sus_patterns_handler.detect(
     content="SELECT * FROM users WHERE id=1 OR 1=1",
     ip_address="192.168.1.100",
     context="query_param:search",
-    correlation_id="req-123"
+    correlation_id="req-123",
 )
 
 if result["is_threat"]:

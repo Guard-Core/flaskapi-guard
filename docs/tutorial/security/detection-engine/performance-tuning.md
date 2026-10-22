@@ -26,8 +26,8 @@ stats = sus_patterns_handler.get_performance_stats()
 
 # Key metrics to monitor
 print(f"Average execution time: {stats['summary']['average_time']}s")
-print(f"Timeout rate: {stats['summary']['timeout_rate']*100}%")
-print(f"Match rate: {stats['summary']['match_rate']*100}%")
+print(f"Timeout rate: {stats['summary']['timeout_rate'] * 100}%")
+print(f"Match rate: {stats['summary']['match_rate'] * 100}%")
 print(f"Slow patterns: {len(stats['slow_patterns'])}")
 print(f"Problematic patterns: {len(stats['problematic_patterns'])}")
 ```
@@ -54,8 +54,8 @@ Target performance levels for different scenarios:
 slow_patterns = monitor.get_slow_patterns(threshold=0.05)
 
 for pattern_info in slow_patterns:
-    pattern = pattern_info['pattern']
-    avg_time = pattern_info['average_time']
+    pattern = pattern_info["pattern"]
+    avg_time = pattern_info["average_time"]
 
     if avg_time > 0.1:
         # Consider removing or optimizing
@@ -100,7 +100,7 @@ pattern = r"(?:SELECT|INSERT|UPDATE).*(?:FROM|INTO)"
 # For high-traffic APIs
 config = SecurityConfig(
     detection_max_content_length=2000,  # Analyze less content
-    detection_preserve_attack_patterns=True  # Still preserve threats
+    detection_preserve_attack_patterns=True,  # Still preserve threats
 )
 
 # For form submissions
@@ -136,6 +136,7 @@ else:
 def health_check():
     # Skip semantic analysis for health checks
     return {"status": "ok"}
+
 
 @app.route("/api/data", methods=["POST"])
 def process_data():
@@ -177,7 +178,7 @@ config = SecurityConfig(
 compiler = sus_patterns_handler._compiler
 cache_stats = compiler.get_cache_stats()
 
-if cache_stats['hit_rate'] < 0.8:
+if cache_stats["hit_rate"] < 0.8:
     # Increase cache size
     compiler.max_cache_size = 2000
 ```
@@ -191,6 +192,7 @@ if cache_stats['hit_rate'] < 0.8:
 @app.before_request
 def adjust_detection_timeout():
     import flask
+
     if request.path.startswith("/api/critical"):
         # Longer timeout for critical endpoints
         flask.g.detection_timeout = 3.0
@@ -208,6 +210,7 @@ def adjust_detection_timeout():
 
 ```python
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 # Process multiple patterns in parallel
 def parallel_pattern_check(content: str, patterns: list):
@@ -232,11 +235,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def monitor_performance():
     stats = sus_patterns_handler.get_performance_stats()
 
     # Alert on performance degradation
-    if stats['summary']['average_time'] > 0.05:
+    if stats["summary"]["average_time"] > 0.05:
         logger.warning(
             f"Performance degradation detected: "
             f"{stats['summary']['average_time']}s average"
@@ -253,25 +257,28 @@ def monitor_performance():
 ```python
 from flask import jsonify
 
+
 # Create performance metrics endpoint
 @app.route("/metrics/detection-engine")
 def get_detection_metrics():
     stats = sus_patterns_handler.get_performance_stats()
 
-    return jsonify({
-        "performance": {
-            "average_execution_ms": stats['summary']['average_time'] * 1000,
-            "p95_execution_ms": stats['summary'].get('p95_time', 0) * 1000,
-            "timeout_rate": stats['summary']['timeout_rate'],
-            "total_executions": stats['summary']['total_executions']
-        },
-        "patterns": {
-            "total": len(stats['all_patterns']),
-            "slow": len(stats['slow_patterns']),
-            "problematic": len(stats['problematic_patterns'])
-        },
-        "health": calculate_health_score(stats)
-    })
+    return jsonify(
+        {
+            "performance": {
+                "average_execution_ms": stats["summary"]["average_time"] * 1000,
+                "p95_execution_ms": stats["summary"].get("p95_time", 0) * 1000,
+                "timeout_rate": stats["summary"]["timeout_rate"],
+                "total_executions": stats["summary"]["total_executions"],
+            },
+            "patterns": {
+                "total": len(stats["all_patterns"]),
+                "slow": len(stats["slow_patterns"]),
+                "problematic": len(stats["problematic_patterns"]),
+            },
+            "health": calculate_health_score(stats),
+        }
+    )
 ```
 
 ## Troubleshooting Performance Issues
@@ -282,12 +289,9 @@ def get_detection_metrics():
 # 1. Check for runaway patterns
 problematic = monitor.get_problematic_patterns()
 for pattern in problematic:
-    if pattern['timeout_rate'] > 0.05:
+    if pattern["timeout_rate"] > 0.05:
         # Remove or fix pattern
-        sus_patterns_handler.remove_pattern(
-            pattern['pattern'],
-            custom=True
-        )
+        sus_patterns_handler.remove_pattern(pattern["pattern"], custom=True)
 
 # 2. Reduce concurrent execution
 config.detection_max_concurrent = 10  # Limit parallel checks
@@ -299,11 +303,12 @@ config.detection_max_concurrent = 10  # Limit parallel checks
 # 1. Reduce history size
 config = SecurityConfig(
     detection_monitor_history_size=500,  # Smaller history
-    detection_max_tracked_patterns=500   # Track fewer patterns
+    detection_max_tracked_patterns=500,  # Track fewer patterns
 )
 
 # 2. Clear old data periodically
 import threading
+
 
 def cleanup_task():
     while True:
@@ -311,11 +316,13 @@ def cleanup_task():
         compiler.clear_unused_cache()
         time.sleep(3600)  # Every hour
 
+
 cleanup_thread = threading.Thread(target=cleanup_task, daemon=True)
 cleanup_thread.start()
 
 # 3. Monitor memory usage
 import psutil
+
 process = psutil.Process()
 memory_mb = process.memory_info().rss / 1024 / 1024
 ```
@@ -325,6 +332,7 @@ memory_mb = process.memory_info().rss / 1024 / 1024
 ```python
 import random
 
+
 # 1. Implement request sampling
 class SamplingFilter:
     def __init__(self, sample_rate=0.1):
@@ -333,6 +341,7 @@ class SamplingFilter:
     def should_analyze(self, request):
         # Only analyze sample of requests
         return random.random() < self.sample_rate
+
 
 # 2. Priority queue for critical paths
 critical_paths = {"/api/payment", "/api/auth"}
@@ -354,16 +363,16 @@ def audit_patterns():
     stats = sus_patterns_handler.get_performance_stats()
 
     # Remove ineffective patterns
-    for pattern in stats['all_patterns']:
-        if pattern['match_rate'] < 0.0001 and pattern['age_days'] > 30:
+    for pattern in stats["all_patterns"]:
+        if pattern["match_rate"] < 0.0001 and pattern["age_days"] > 30:
             logger.info(f"Removing ineffective pattern: {pattern['pattern']}")
-            sus_patterns_handler.remove_pattern(pattern['pattern'])
+            sus_patterns_handler.remove_pattern(pattern["pattern"])
 
     # Optimize slow patterns
-    for pattern in stats['slow_patterns']:
-        optimized = optimize_pattern(pattern['pattern'])
-        if optimized != pattern['pattern']:
-            sus_patterns_handler.remove_pattern(pattern['pattern'])
+    for pattern in stats["slow_patterns"]:
+        optimized = optimize_pattern(pattern["pattern"])
+        if optimized != pattern["pattern"]:
+            sus_patterns_handler.remove_pattern(pattern["pattern"])
             sus_patterns_handler.add_pattern(optimized, custom=True)
 ```
 
@@ -373,6 +382,7 @@ def audit_patterns():
 # Performance test script
 import time
 from concurrent.futures import ThreadPoolExecutor
+
 
 def load_test():
     test_contents = [
@@ -392,14 +402,14 @@ def load_test():
                     sus_patterns_handler.detect,
                     content=content,
                     ip_address="127.0.0.1",
-                    context="load_test"
+                    context="load_test",
                 )
                 tasks.append(future)
 
     elapsed = time.time() - start
 
     print(f"Processed {len(tasks)} requests in {elapsed:.2f}s")
-    print(f"Average: {elapsed/len(tasks)*1000:.2f}ms per request")
+    print(f"Average: {elapsed / len(tasks) * 1000:.2f}ms per request")
 ```
 
 ### 3. Gradual Rollout

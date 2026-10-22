@@ -25,6 +25,7 @@ from flaskapi_guard import SecurityDecorator
 
 guard_deco = SecurityDecorator(config)
 
+
 @app.route("/api/sensitive")
 @guard_deco.usage_monitor(max_calls=10, window=3600, action="ban")
 def sensitive_endpoint():
@@ -40,6 +41,7 @@ def sensitive_endpoint():
 def lootbox_endpoint():
     # Prevent lootbox farming
     return {"reward": "rare_item", "value": 1000}
+
 
 @app.route("/api/game/daily-reward", methods=["POST"])
 @guard_deco.usage_monitor(max_calls=1, window=86400, action="ban")
@@ -57,6 +59,7 @@ def daily_reward():
 def expensive_operation():
     # Prevent abuse of computationally expensive operations
     return {"result": "computed_data"}
+
 
 @app.route("/api/search")
 @guard_deco.usage_monitor(max_calls=100, window=3600, action="alert")
@@ -103,19 +106,12 @@ def spin_wheel():
 ```python
 @app.route("/api/game/battle", methods=["POST"])
 @guard_deco.return_monitor(
-    "json:result.outcome==victory",
-    max_occurrences=10,
-    window=3600,
-    action="alert"
+    "json:result.outcome==victory", max_occurrences=10, window=3600, action="alert"
 )
 def battle_endpoint():
     # Monitor for suspicious win rates
     return {
-        "result": {
-            "outcome": "victory",
-            "experience": 100,
-            "loot": ["sword", "gold"]
-        }
+        "result": {"outcome": "victory", "experience": 100, "loot": ["sword", "gold"]}
     }
 ```
 
@@ -125,10 +121,7 @@ def battle_endpoint():
 ```python
 @app.route("/api/contest/submit")
 @guard_deco.return_monitor(
-    "regex:(success|winner|prize)",
-    max_occurrences=5,
-    window=86400,
-    action="ban"
+    "regex:(success|winner|prize)", max_occurrences=5, window=86400, action="ban"
 )
 def contest_submission():
     # Detect multiple contest wins from same IP
@@ -151,6 +144,7 @@ Detect suspiciously high request frequencies:
 def generate_report():
     # Max 1 request per 10 seconds (0.1 requests/second)
     return {"status": "Report generation started"}
+
 
 @app.route("/api/backup/create", methods=["POST"])
 @guard_deco.suspicious_frequency(max_frequency=0.017, window=3600, action="ban")
@@ -186,9 +180,12 @@ from flaskapi_guard import BehaviorRule
 # Define multiple rules
 rules = [
     BehaviorRule("usage", threshold=20, window=3600, action="alert"),
-    BehaviorRule("return_pattern", threshold=5, pattern="win", window=86400, action="ban"),
-    BehaviorRule("frequency", threshold=60, window=300, action="throttle")
+    BehaviorRule(
+        "return_pattern", threshold=5, pattern="win", window=86400, action="ban"
+    ),
+    BehaviorRule("frequency", threshold=60, window=300, action="throttle"),
 ]
+
 
 @app.route("/api/casino/play", methods=["POST"])
 @guard_deco.behavior_analysis(rules)
@@ -204,7 +201,9 @@ def casino_game():
 # Comprehensive gaming endpoint protection
 @app.route("/api/game/action", methods=["POST"])
 @guard_deco.usage_monitor(max_calls=100, window=3600, action="alert")
-@guard_deco.return_monitor("critical_hit", max_occurrences=10, window=3600, action="ban")
+@guard_deco.return_monitor(
+    "critical_hit", max_occurrences=10, window=3600, action="ban"
+)
 @guard_deco.suspicious_frequency(max_frequency=5.0, window=60, action="throttle")
 def game_action():
     # Multi-layered protection against game exploitation
@@ -245,7 +244,9 @@ def strict_endpoint():
 ------------
 
 ```python
-@guard_deco.return_monitor("suspicious_pattern", max_occurrences=3, window=3600, action="alert")
+@guard_deco.return_monitor(
+    "suspicious_pattern", max_occurrences=3, window=3600, action="alert"
+)
 def monitored_endpoint():
     # Log alerts but don't block access
     return {"status": "monitored"}
@@ -280,7 +281,9 @@ Advanced Pattern Formats
 ----------------------
 
 ```python
-@guard_deco.return_monitor("status:200", max_occurrences=1000, window=3600, action="alert")
+@guard_deco.return_monitor(
+    "status:200", max_occurrences=1000, window=3600, action="alert"
+)
 def success_monitored():
     # Monitor successful request patterns
     return {"status": "success"}
@@ -291,20 +294,15 @@ def success_monitored():
 
 ```python
 @guard_deco.return_monitor(
-    "json:user.level>50",
-    max_occurrences=5,
-    window=86400,
-    action="ban"
+    "json:user.level>50", max_occurrences=5, window=86400, action="ban"
 )
 def level_up():
     # Detect suspicious leveling patterns
     return {"user": {"level": 55, "experience": 10000}}
 
+
 @guard_deco.return_monitor(
-    "json:transaction.amount>10000",
-    max_occurrences=3,
-    window=86400,
-    action="alert"
+    "json:transaction.amount>10000", max_occurrences=3, window=86400, action="alert"
 )
 def high_value_transaction():
     # Monitor large transactions
@@ -384,7 +382,7 @@ For distributed applications, ensure Redis is configured:
 config = SecurityConfig(
     enable_redis=True,
     redis_url="redis://localhost:6379",
-    redis_prefix="flaskapi_guard:"
+    redis_prefix="flaskapi_guard:",
 )
 
 # Behavioral tracking will use Redis for distributed state
@@ -409,7 +407,7 @@ Behavioral decorators integrate with extension error handling:
 config = SecurityConfig(
     custom_error_responses={
         403: "Behavioral analysis detected suspicious activity",
-        429: "Request frequency too high - throttled"
+        429: "Request frequency too high - throttled",
     }
 )
 ```
@@ -422,10 +420,7 @@ Monitoring and Debugging
 Enable detailed logging to monitor behavioral analysis:
 
 ```python
-config = SecurityConfig(
-    log_suspicious_level="DEBUG",
-    log_request_level="INFO"
-)
+config = SecurityConfig(log_suspicious_level="DEBUG", log_request_level="INFO")
 
 # Logs will include:
 # - Behavioral rule violations
@@ -443,6 +438,7 @@ Test your behavioral decorators:
 ```python
 import pytest
 
+
 def test_usage_monitor(client):
     # Should allow normal usage
     for i in range(5):
@@ -453,9 +449,10 @@ def test_usage_monitor(client):
     response = client.get("/api/monitored")
     assert response.status_code == 403
 
+
 def test_return_pattern(client):
     # Mock responses to trigger pattern
-    with patch('random.choice', return_value='win'):
+    with patch("random.choice", return_value="win"):
         for i in range(3):
             response = client.post("/api/lottery")
             if i < 2:

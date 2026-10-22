@@ -45,6 +45,7 @@ app = Flask(__name__)
 config = SecurityConfig()
 guard_deco = SecurityDecorator(config)
 
+
 @app.route("/api/sensitive")
 @guard_deco.rate_limit(requests=5, window=300)
 @guard_deco.require_ip(whitelist=["10.0.0.0/8"])
@@ -197,11 +198,12 @@ config = SecurityConfig(
     enable_ip_banning=True,
     enable_rate_limiting=True,
     rate_limit_requests=100,
-    rate_limit_window=3600
+    rate_limit_window=3600,
 )
 
 # Create decorator instance
 guard_deco = SecurityDecorator(config)
+
 
 # Apply decorators to routes
 @guard_deco.rate_limit(requests=10, window=300)  # Override: 10 requests/5min
@@ -210,10 +212,12 @@ def limited_endpoint():
     # Uses decorator-specific rate limiting
     return {"data": "limited"}
 
+
 @app.route("/api/public")
 def public_endpoint():
     # Uses global rate limiting (100 requests/hour)
     return {"data": "public"}
+
 
 # Add global extension
 guard = FlaskAPIGuard(app, config=config)
@@ -234,11 +238,11 @@ Apply decorators in logical order, with more specific restrictions first:
 
 ```python
 @app.route("/api/admin/sensitive", methods=["POST"])
-@guard_deco.require_https()                        # Security requirement
-@guard_deco.require_auth(type="bearer")            # Authentication
-@guard_deco.require_ip(whitelist=["10.0.0.0/8"])   # Access control
-@guard_deco.rate_limit(requests=5, window=3600)    # Rate limiting
-@guard_deco.suspicious_detection(enabled=True)     # Monitoring
+@guard_deco.require_https()  # Security requirement
+@guard_deco.require_auth(type="bearer")  # Authentication
+@guard_deco.require_ip(whitelist=["10.0.0.0/8"])  # Access control
+@guard_deco.rate_limit(requests=5, window=3600)  # Rate limiting
+@guard_deco.suspicious_detection(enabled=True)  # Monitoring
 def admin_endpoint():
     return {"status": "admin action"}
 ```
@@ -265,7 +269,7 @@ Combine geographic and cloud provider controls:
 ```python
 @app.route("/api/restricted")
 @guard_deco.allow_countries(["US", "CA", "GB"])  # Allow specific countries
-@guard_deco.block_clouds(["AWS", "GCP"])         # Block cloud providers
+@guard_deco.block_clouds(["AWS", "GCP"])  # Block cloud providers
 def restricted_endpoint():
     return {"data": "geo-restricted"}
 ```
