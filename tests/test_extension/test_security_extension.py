@@ -170,7 +170,7 @@ def test_custom_request_check() -> None:
     config = SecurityConfig(
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         enable_penetration_detection=False,
-        custom_request_check=cast(Any, custom_check),
+        custom_request_check=custom_check,
     )
 
     FlaskAPIGuard(app, config=config)

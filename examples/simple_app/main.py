@@ -2,7 +2,6 @@ import logging
 import os
 from datetime import datetime, timezone
 from ipaddress import ip_address
-from typing import Any, cast
 
 from flask import (
     Blueprint,
@@ -80,8 +79,8 @@ security_config = SecurityConfig(
     redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379"),
     redis_prefix=os.environ.get("REDIS_PREFIX", "flaskapi_guard:"),
     enforce_https=False,
-    custom_request_check=cast(Any, custom_request_check),
-    custom_response_modifier=cast(Any, custom_response_modifier),
+    custom_request_check=custom_request_check,
+    custom_response_modifier=custom_response_modifier,
     cloud_ip_refresh_interval=1800,
     log_format="json",
     security_headers={

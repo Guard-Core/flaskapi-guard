@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from flask import Flask, Response
+from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.decorators.base import RouteConfig
 from guard_core.sync.detection_result import DetectionResult
 from guard_core.sync.handlers.behavior_handler import BehaviorRule
@@ -468,10 +469,10 @@ def test_bypass_all_security_checks_with_custom_modifier() -> None:
     """Test bypassing all security checks with custom response modifier."""
     app = Flask(__name__)
 
-    def custom_modifier(response: FlaskGuardResponse) -> FlaskGuardResponse:
+    def custom_modifier(response: GuardResponse) -> FlaskGuardResponse:
         return FlaskGuardResponse(Response("custom modified", status=202))
 
-    config = SecurityConfig(custom_response_modifier=cast(Any, custom_modifier))
+    config = SecurityConfig(custom_response_modifier=custom_modifier)
 
     decorator = SecurityDecorator(config)
 
