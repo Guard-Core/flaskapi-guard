@@ -39,6 +39,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
+          # Stays on 3.12 on purpose: drift and live-stack smoke are interpreter-agnostic checks; the matrix in ci.yml runs the suite on every version.
           python-version: '3.12'
 
       - name: Install uv
