@@ -150,11 +150,6 @@ warn_unreachable = true
 exclude = ["vulture_whitelist.py", ".venv"]
 
 
-[[tool.mypy.overrides]]
-# matplotlib is installed only on Python 3.11 and newer (the stress test imports it where it draws charts)
-module = ["matplotlib", "matplotlib.*"]
-ignore_missing_imports = true
-
 [tool.pymarkdown.extensions]
 # Enable YAML front matter parsing (agent skill files use front matter)
 front-matter = {enabled = true}
