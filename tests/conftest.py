@@ -167,6 +167,7 @@ def reset_rate_limiter() -> None:
 
 @pytest.fixture
 def clean_rate_limiter() -> None:
-    from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
+    from guard_core.sync.handlers.ratelimit_handler import _managers, _managers_lock
 
-    RateLimitManager._instance = None
+    with _managers_lock:
+        _managers.clear()

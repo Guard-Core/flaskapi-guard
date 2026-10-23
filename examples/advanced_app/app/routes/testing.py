@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from flask.typing import ResponseReturnValue
 
 from app.models import message_response
 
@@ -6,7 +7,7 @@ bp = Blueprint("test", __name__, url_prefix="/test")
 
 
 @bp.route("/xss-test", methods=["POST"])
-def test_xss_detection():
+def test_xss_detection() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     payload = data if isinstance(data, str) else data.get("payload", "")
     return jsonify(
@@ -18,7 +19,7 @@ def test_xss_detection():
 
 
 @bp.route("/sql-injection")
-def test_sql_injection():
+def test_sql_injection() -> ResponseReturnValue:
     query = request.args.get("query", "")
     return jsonify(
         message_response(
@@ -29,7 +30,7 @@ def test_sql_injection():
 
 
 @bp.route("/path-traversal/<path:file_path>")
-def test_path_traversal(file_path: str):
+def test_path_traversal(file_path: str) -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Path traversal test",
@@ -39,7 +40,7 @@ def test_path_traversal(file_path: str):
 
 
 @bp.route("/command-injection", methods=["POST"])
-def test_command_injection():
+def test_command_injection() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     command = data if isinstance(data, str) else data.get("command", "")
     return jsonify(
@@ -51,7 +52,7 @@ def test_command_injection():
 
 
 @bp.route("/mixed-attack", methods=["POST"])
-def test_mixed_attack():
+def test_mixed_attack() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     return jsonify(
         message_response(

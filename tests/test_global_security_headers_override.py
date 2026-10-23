@@ -76,6 +76,7 @@ def test_the_response_manager_reaches_the_redis_of_its_app() -> None:
     _, guard = _app(_config(enable_redis=True, redis_url=REDIS_URL))
 
     assert guard.redis_handler is not None
+    assert guard.response_factory is not None
     assert guard.response_factory.security_headers_manager.redis_handler is (
         guard.redis_handler
     )

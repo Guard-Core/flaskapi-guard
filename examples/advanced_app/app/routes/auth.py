@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from flask.typing import ResponseReturnValue
 
 from app.models import auth_response, message_response
 from app.security import guard
@@ -8,7 +9,7 @@ bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 @bp.route("/https-only")
 @guard.require_https()
-def https_required_endpoint():
+def https_required_endpoint() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "HTTPS connection verified",
@@ -19,7 +20,7 @@ def https_required_endpoint():
 
 @bp.route("/bearer-auth")
 @guard.require_auth(type="bearer")
-def bearer_authentication():
+def bearer_authentication() -> ResponseReturnValue:
     return jsonify(
         auth_response(
             authenticated=True,
@@ -32,7 +33,7 @@ def bearer_authentication():
 
 @bp.route("/api-key")
 @guard.api_key_auth(header_name="X-API-Key")
-def api_key_authentication():
+def api_key_authentication() -> ResponseReturnValue:
     return jsonify(
         auth_response(
             authenticated=True,
@@ -50,7 +51,7 @@ def api_key_authentication():
         "X-Client-ID": "required-value",
     }
 )
-def require_custom_headers():
+def require_custom_headers() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Required headers verified",

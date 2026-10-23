@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from ipaddress import ip_address
+from typing import Any, cast
 
 from flask import (
     Blueprint,
@@ -11,11 +12,14 @@ from flask import (
     make_response,
     request,
 )
+from flask.typing import ResponseReturnValue
 
 from flaskapi_guard import (
     BehaviorRule,
     FlaskAPIGuard,
     FlaskGuardResponse,
+    GuardRequest,
+    GuardResponse,
     SecurityConfig,
     SecurityDecorator,
     cloud_handler,
@@ -29,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def custom_request_check(req):
+def custom_request_check(req: GuardRequest) -> GuardResponse | None:
     # The check receives the guard's abstract request protocol:
     # query params live on req.query_params, not Flask's request.args.
     if req.query_params.get("debug") == "true":
@@ -47,7 +51,7 @@ def custom_request_check(req):
     return None
 
 
-def custom_response_modifier(resp):
+def custom_response_modifier(resp: GuardResponse) -> GuardResponse:
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["X-Frame-Options"] = "DENY"
     resp.headers["X-XSS-Protection"] = "1; mode=block"
@@ -57,12 +61,12 @@ def custom_response_modifier(resp):
 
 security_config = SecurityConfig(
     # Include the Docker client networks so host curls are not flagged
-    whitelist=["127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"],
-    blacklist=["192.168.100.0/24"],
-    trusted_proxies=["127.0.0.1", "10.0.0.0/8"],
+    whitelist=("127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"),
+    blacklist=("192.168.100.0/24",),
+    trusted_proxies=("127.0.0.1", "10.0.0.0/8"),
     trusted_proxy_depth=2,
     trust_x_forwarded_proto=True,
-    block_cloud_providers={"AWS", "GCP", "Azure"},
+    block_cloud_providers=frozenset({"AWS", "GCP", "Azure"}),
     blocked_user_agents=["badbot", "evil-crawler", "sqlmap"],
     enable_rate_limiting=True,
     rate_limit=30,
@@ -76,8 +80,8 @@ security_config = SecurityConfig(
     redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379"),
     redis_prefix=os.environ.get("REDIS_PREFIX", "flaskapi_guard:"),
     enforce_https=False,
-    custom_request_check=custom_request_check,
-    custom_response_modifier=custom_response_modifier,
+    custom_request_check=cast(Any, custom_request_check),
+    custom_response_modifier=cast(Any, custom_response_modifier),
     cloud_ip_refresh_interval=1800,
     log_format="json",
     security_headers={
@@ -143,12 +147,12 @@ basic_bp = Blueprint("basic", __name__, url_prefix="/basic")
 
 
 @basic_bp.route("/")
-def basic_root():
+def basic_root() -> ResponseReturnValue:
     return jsonify({"message": "Basic features endpoint"})
 
 
 @basic_bp.route("/ip")
-def basic_ip():
+def basic_ip() -> ResponseReturnValue:
     client_ip = request.remote_addr or "unknown"
     try:
         ip_obj = ip_address(client_ip)
@@ -170,7 +174,7 @@ def basic_ip():
 
 
 @basic_bp.route("/health")
-def basic_health():
+def basic_health() -> ResponseReturnValue:
     return jsonify(
         {
             "status": "healthy",
@@ -180,7 +184,7 @@ def basic_health():
 
 
 @basic_bp.route("/echo", methods=["POST"])
-def basic_echo():
+def basic_echo() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     return jsonify(
         {
@@ -200,7 +204,7 @@ access_bp = Blueprint("access", __name__, url_prefix="/access")
 
 @access_bp.route("/ip-whitelist")
 @guard_decorator.require_ip(whitelist=["127.0.0.1", "10.0.0.0/8"])
-def access_ip_whitelist():
+def access_ip_whitelist() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "IP whitelist access granted",
@@ -216,7 +220,7 @@ def access_ip_whitelist():
 
 @access_bp.route("/ip-blacklist")
 @guard_decorator.require_ip(blacklist=["192.168.1.0/24", "172.16.0.0/12"])
-def access_ip_blacklist():
+def access_ip_blacklist() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "IP blacklist check passed",
@@ -232,7 +236,7 @@ def access_ip_blacklist():
 
 @access_bp.route("/country-block")
 @guard_decorator.block_countries(["CN", "RU", "KP"])
-def access_country_block():
+def access_country_block() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Country block check passed",
@@ -243,7 +247,7 @@ def access_country_block():
 
 @access_bp.route("/country-allow")
 @guard_decorator.allow_countries(["US", "CA", "GB", "AU"])
-def access_country_allow():
+def access_country_allow() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Country allow check passed",
@@ -254,7 +258,7 @@ def access_country_allow():
 
 @access_bp.route("/no-cloud")
 @guard_decorator.block_clouds()
-def access_no_cloud():
+def access_no_cloud() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Cloud provider check passed",
@@ -265,7 +269,7 @@ def access_no_cloud():
 
 @access_bp.route("/no-aws")
 @guard_decorator.block_clouds(["AWS"])
-def access_no_aws():
+def access_no_aws() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "AWS cloud check passed",
@@ -276,7 +280,7 @@ def access_no_aws():
 
 @access_bp.route("/bypass-demo")
 @guard_decorator.bypass(["rate_limit", "ip"])
-def access_bypass_demo():
+def access_bypass_demo() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Security bypass demo",
@@ -295,7 +299,7 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 @auth_bp.route("/https-only")
 @guard_decorator.require_https()
-def auth_https_only():
+def auth_https_only() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "HTTPS verification passed",
@@ -306,7 +310,7 @@ def auth_https_only():
 
 @auth_bp.route("/bearer-auth")
 @guard_decorator.require_auth(type="bearer")
-def auth_bearer():
+def auth_bearer() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Bearer authentication verified",
@@ -317,7 +321,7 @@ def auth_bearer():
 
 @auth_bp.route("/api-key")
 @guard_decorator.api_key_auth(header_name="X-API-Key")
-def auth_api_key():
+def auth_api_key() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "API key authentication verified",
@@ -333,7 +337,7 @@ def auth_api_key():
         "X-Client-ID": "required-value",
     }
 )
-def auth_custom_headers():
+def auth_custom_headers() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Custom headers verified",
@@ -352,7 +356,7 @@ rate_bp = Blueprint("rate", __name__, url_prefix="/rate")
 
 @rate_bp.route("/custom-limit")
 @guard_decorator.rate_limit(requests=5, window=60)
-def rate_custom_limit():
+def rate_custom_limit() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Custom rate limit endpoint",
@@ -366,7 +370,7 @@ def rate_custom_limit():
 
 @rate_bp.route("/strict-limit")
 @guard_decorator.rate_limit(requests=1, window=10)
-def rate_strict_limit():
+def rate_strict_limit() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Strict rate limit endpoint",
@@ -387,7 +391,7 @@ def rate_strict_limit():
         "*": (50, 60),
     }
 )
-def rate_geo_limit():
+def rate_geo_limit() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Geo-based rate limit endpoint",
@@ -408,7 +412,7 @@ behavior_bp = Blueprint("behavior", __name__, url_prefix="/behavior")
 
 @behavior_bp.route("/usage-monitor")
 @guard_decorator.usage_monitor(max_calls=10, window=300, action="log")
-def behavior_usage_monitor():
+def behavior_usage_monitor() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Usage monitored endpoint",
@@ -428,7 +432,7 @@ def behavior_usage_monitor():
     window=60,
     action="ban",
 )
-def behavior_return_monitor(status_code):
+def behavior_return_monitor(status_code: int) -> ResponseReturnValue:
     if status_code == 404:
         return jsonify({"detail": "Not found"}), 404
     return jsonify(
@@ -444,7 +448,7 @@ def behavior_return_monitor(status_code):
 
 @behavior_bp.route("/suspicious-frequency")
 @guard_decorator.suspicious_frequency(max_frequency=0.5, window=10, action="throttle")
-def behavior_suspicious_frequency():
+def behavior_suspicious_frequency() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Suspicious frequency endpoint",
@@ -475,7 +479,7 @@ def behavior_suspicious_frequency():
         ),
     ]
 )
-def behavior_rules():
+def behavior_rules() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     return jsonify(
         {
@@ -503,7 +507,7 @@ headers_bp = Blueprint("headers", __name__, url_prefix="/headers")
 
 
 @headers_bp.route("/")
-def headers_root():
+def headers_root() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Security headers information",
@@ -525,7 +529,7 @@ def headers_root():
 
 
 @headers_bp.route("/test-page")
-def headers_test_page():
+def headers_test_page() -> ResponseReturnValue:
     html = """<!DOCTYPE html>
 <html>
 <head>
@@ -555,7 +559,7 @@ def headers_test_page():
 
 
 @headers_bp.route("/csp-report", methods=["POST"])
-def headers_csp_report():
+def headers_csp_report() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     logger.warning(f"CSP Violation Report: {data}")
     return jsonify(
@@ -567,7 +571,7 @@ def headers_csp_report():
 
 
 @headers_bp.route("/frame-test")
-def headers_frame_test():
+def headers_frame_test() -> ResponseReturnValue:
     html = """<!DOCTYPE html>
 <html>
 <head><title>Frame Test</title></head>
@@ -584,8 +588,8 @@ def headers_frame_test():
 
 
 @headers_bp.route("/hsts-info")
-def headers_hsts_info():
-    hsts_config = security_config.security_headers.get("hsts", {})
+def headers_hsts_info() -> ResponseReturnValue:
+    hsts_config = (security_config.security_headers or {}).get("hsts", {})
     return jsonify(
         {
             "message": "HSTS configuration",
@@ -599,7 +603,7 @@ def headers_hsts_info():
 
 
 @headers_bp.route("/security-analysis")
-def headers_security_analysis():
+def headers_security_analysis() -> ResponseReturnValue:
     req_headers = dict(request.headers)
     analysis = {
         "has_authorization": "Authorization" in req_headers,
@@ -626,7 +630,7 @@ content_bp = Blueprint("content", __name__, url_prefix="/content")
 
 @content_bp.route("/no-bots")
 @guard_decorator.block_user_agents(["bot", "crawler", "spider", "scraper"])
-def content_no_bots():
+def content_no_bots() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Bot-free zone",
@@ -644,7 +648,7 @@ def content_no_bots():
 
 @content_bp.route("/json-only", methods=["POST"])
 @guard_decorator.content_type_filter(["application/json"])
-def content_json_only():
+def content_json_only() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     return jsonify(
         {
@@ -656,7 +660,7 @@ def content_json_only():
 
 @content_bp.route("/size-limit", methods=["POST"])
 @guard_decorator.max_request_size(1024 * 100)
-def content_size_limit():
+def content_size_limit() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     return jsonify(
         {
@@ -671,7 +675,7 @@ def content_size_limit():
 
 @content_bp.route("/referrer-check")
 @guard_decorator.require_referrer(["https://example.com", "https://app.example.com"])
-def content_referrer_check():
+def content_referrer_check() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Referrer check passed",
@@ -685,20 +689,22 @@ def content_referrer_check():
     )
 
 
-def custom_validator(req):
+def custom_validator(req: GuardRequest) -> GuardResponse | None:
     user_agent = req.headers.get("user-agent", "").lower()
     if "suspicious-pattern" in user_agent:
-        return Response(
-            response=('{"detail": "Suspicious user agent detected"}'),
-            status=403,
-            content_type="application/json",
+        return FlaskGuardResponse(
+            Response(
+                response=('{"detail": "Suspicious user agent detected"}'),
+                status=403,
+                content_type="application/json",
+            )
         )
     return None
 
 
 @content_bp.route("/custom-validation")
 @guard_decorator.custom_validation(custom_validator)
-def content_custom_validation():
+def content_custom_validation() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Custom validation passed",
@@ -716,7 +722,7 @@ advanced_bp = Blueprint("advanced", __name__, url_prefix="/advanced")
     end_time="17:00",
     timezone="UTC",
 )
-def advanced_business_hours():
+def advanced_business_hours() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Business hours access granted",
@@ -734,7 +740,7 @@ def advanced_business_hours():
     end_time="23:59",
     timezone="UTC",
 )
-def advanced_weekend_only():
+def advanced_weekend_only() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Weekend access granted",
@@ -748,7 +754,7 @@ def advanced_weekend_only():
 
 @advanced_bp.route("/honeypot", methods=["POST"])
 @guard_decorator.honeypot_detection(["honeypot_field", "trap_input", "hidden_field"])
-def advanced_honeypot():
+def advanced_honeypot() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     return jsonify(
         {
@@ -767,7 +773,7 @@ def advanced_honeypot():
 
 @advanced_bp.route("/suspicious-patterns")
 @guard_decorator.suspicious_detection(enabled=True)
-def advanced_suspicious_patterns():
+def advanced_suspicious_patterns() -> ResponseReturnValue:
     query = request.args.get("q", "")
     return jsonify(
         {
@@ -782,7 +788,7 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 @admin_bp.route("/unban-ip", methods=["POST"])
 @guard_decorator.require_ip(whitelist=["127.0.0.1"])
-def admin_unban_ip():
+def admin_unban_ip() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     ip_to_unban = data.get("ip")
     if not ip_to_unban:
@@ -798,7 +804,7 @@ def admin_unban_ip():
 
 @admin_bp.route("/stats")
 @guard_decorator.require_ip(whitelist=["127.0.0.1"])
-def admin_stats():
+def admin_stats() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Security statistics",
@@ -816,7 +822,7 @@ def admin_stats():
 
 @admin_bp.route("/clear-cache", methods=["POST"])
 @guard_decorator.require_ip(whitelist=["127.0.0.1"])
-def admin_clear_cache():
+def admin_clear_cache() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Cache cleared successfully",
@@ -827,7 +833,7 @@ def admin_clear_cache():
 
 @admin_bp.route("/emergency-mode", methods=["PUT"])
 @guard_decorator.require_ip(whitelist=["127.0.0.1"])
-def admin_emergency_mode():
+def admin_emergency_mode() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     enable = data.get("enable", False)
     return jsonify(
@@ -842,7 +848,7 @@ def admin_emergency_mode():
 
 @admin_bp.route("/cloud-status")
 @guard_decorator.require_ip(whitelist=["127.0.0.1"])
-def cloud_status():
+def cloud_status() -> ResponseReturnValue:
     last_updated = {}
     for provider, dt in cloud_handler.last_updated.items():
         last_updated[provider] = dt.isoformat() if dt else None
@@ -861,7 +867,7 @@ test_bp = Blueprint("test", __name__, url_prefix="/test")
 
 
 @test_bp.route("/xss-test", methods=["POST"])
-def test_xss():
+def test_xss() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     return jsonify(
         {
@@ -872,7 +878,7 @@ def test_xss():
 
 
 @test_bp.route("/sql-injection")
-def test_sql_injection():
+def test_sql_injection() -> ResponseReturnValue:
     query = request.args.get("query", "")
     return jsonify(
         {
@@ -883,7 +889,7 @@ def test_sql_injection():
 
 
 @test_bp.route("/path-traversal/<path:file_path>")
-def test_path_traversal(file_path):
+def test_path_traversal(file_path: str) -> ResponseReturnValue:
     return jsonify(
         {
             "message": "Path traversal test endpoint",
@@ -893,7 +899,7 @@ def test_path_traversal(file_path):
 
 
 @test_bp.route("/command-injection", methods=["POST"])
-def test_command_injection():
+def test_command_injection() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     return jsonify(
         {
@@ -904,7 +910,7 @@ def test_command_injection():
 
 
 @test_bp.route("/mixed-attack", methods=["POST"])
-def test_mixed_attack():
+def test_mixed_attack() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     return jsonify(
         {
@@ -918,7 +924,7 @@ def test_mixed_attack():
 
 
 @app.route("/")
-def root():
+def root() -> ResponseReturnValue:
     return jsonify(
         {
             "message": "FlaskAPI Guard Example Application",
@@ -942,7 +948,7 @@ def root():
 
 
 @app.route("/health")
-def health():
+def health() -> ResponseReturnValue:
     return jsonify(
         {
             "status": "healthy",
@@ -952,12 +958,12 @@ def health():
 
 
 @app.errorhandler(404)
-def not_found(e):
+def not_found(e: Exception) -> ResponseReturnValue:
     return jsonify({"detail": "Not found"}), 404
 
 
 @app.errorhandler(500)
-def internal_error(e):
+def internal_error(e: Exception) -> ResponseReturnValue:
     return jsonify({"detail": "Internal server error"}), 500
 
 

@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify
+from flask.typing import ResponseReturnValue
 
 from app.models import message_response
 from app.security import guard
@@ -8,7 +9,7 @@ bp = Blueprint("rate", __name__, url_prefix="/rate")
 
 @bp.route("/custom-limit")
 @guard.rate_limit(requests=5, window=60)
-def custom_rate_limit():
+def custom_rate_limit() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Custom rate limit endpoint",
@@ -19,7 +20,7 @@ def custom_rate_limit():
 
 @bp.route("/strict-limit")
 @guard.rate_limit(requests=1, window=10)
-def strict_rate_limit():
+def strict_rate_limit() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Strict rate limit endpoint",
@@ -37,7 +38,7 @@ def strict_rate_limit():
         "*": (50, 60),
     }
 )
-def geographic_rate_limiting():
+def geographic_rate_limiting() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Geographic rate limiting applied",

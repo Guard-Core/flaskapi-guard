@@ -2,6 +2,7 @@ from ipaddress import ip_address
 from typing import Any
 
 from flask import Blueprint, jsonify, request
+from flask.typing import ResponseReturnValue
 
 from app.models import health_response, ip_info_response, message_response
 
@@ -9,12 +10,12 @@ bp = Blueprint("basic", __name__, url_prefix="/basic")
 
 
 @bp.route("/")
-def basic_root():
+def basic_root() -> ResponseReturnValue:
     return jsonify(message_response("Basic features endpoint"))
 
 
 @bp.route("/ip")
-def get_ip_info():
+def get_ip_info() -> ResponseReturnValue:
     client_ip = "unknown"
     if request.remote_addr:
         try:
@@ -35,12 +36,12 @@ def get_ip_info():
 
 
 @bp.route("/health")
-def health_check():
+def health_check() -> ResponseReturnValue:
     return jsonify(health_response("healthy"))
 
 
 @bp.route("/echo", methods=["POST"])
-def echo_request():
+def echo_request() -> ResponseReturnValue:
     data: dict[str, Any] = request.get_json(silent=True) or {}
     return jsonify(
         message_response(

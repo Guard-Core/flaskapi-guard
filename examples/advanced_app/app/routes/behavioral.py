@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify
+from flask.typing import ResponseReturnValue
 
 from app.models import message_response
 from app.security import guard
@@ -9,7 +10,7 @@ bp = Blueprint("behavior", __name__, url_prefix="/behavior")
 
 @bp.route("/usage-monitor")
 @guard.usage_monitor(max_calls=10, window=300, action="log")
-def monitor_usage_patterns():
+def monitor_usage_patterns() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Usage monitoring active",
@@ -20,7 +21,7 @@ def monitor_usage_patterns():
 
 @bp.route("/return-monitor/<int:status_code>")
 @guard.return_monitor(pattern="404", max_occurrences=3, window=60, action="ban")
-def monitor_return_patterns(status_code: int):
+def monitor_return_patterns(status_code: int) -> ResponseReturnValue:
     if status_code == 404:
         return jsonify({"detail": "Not found"}), 404
     return jsonify(message_response(f"Status code: {status_code}"))
@@ -28,7 +29,7 @@ def monitor_return_patterns(status_code: int):
 
 @bp.route("/suspicious-frequency")
 @guard.suspicious_frequency(max_frequency=0.5, window=10, action="throttle")
-def detect_suspicious_frequency():
+def detect_suspicious_frequency() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Frequency monitoring active",
@@ -57,7 +58,7 @@ def detect_suspicious_frequency():
         ),
     ]
 )
-def complex_behavior_analysis():
+def complex_behavior_analysis() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Complex behavior analysis active",

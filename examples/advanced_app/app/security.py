@@ -1,24 +1,33 @@
 import logging
 import os
+from typing import Any, cast
 
-from flask import Request, Response
+from flask import Response
 
-from flaskapi_guard import SecurityConfig, SecurityDecorator
+from flaskapi_guard import (
+    FlaskGuardResponse,
+    GuardRequest,
+    GuardResponse,
+    SecurityConfig,
+    SecurityDecorator,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def custom_request_check(req: Request) -> Response | None:
-    if req.args.get("debug") == "true":
-        return Response(
-            response='{"detail": "Debug mode not allowed"}',
-            status=403,
-            content_type="application/json",
+def custom_request_check(req: GuardRequest) -> GuardResponse | None:
+    if req.query_params.get("debug") == "true":
+        return FlaskGuardResponse(
+            Response(
+                response='{"detail": "Debug mode not allowed"}',
+                status=403,
+                content_type="application/json",
+            )
         )
     return None
 
 
-def custom_response_modifier(resp: Response) -> Response:
+def custom_response_modifier(resp: GuardResponse) -> GuardResponse:
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["X-Frame-Options"] = "DENY"
     resp.headers["X-XSS-Protection"] = "1; mode=block"
@@ -27,12 +36,12 @@ def custom_response_modifier(resp: Response) -> Response:
 
 
 security_config = SecurityConfig(
-    whitelist=[],
-    blacklist=["192.168.100.0/24"],
-    trusted_proxies=["172.16.0.0/12", "10.0.0.0/8"],
+    whitelist=(),
+    blacklist=("192.168.100.0/24",),
+    trusted_proxies=("172.16.0.0/12", "10.0.0.0/8"),
     trusted_proxy_depth=1,
     trust_x_forwarded_proto=True,
-    block_cloud_providers={"AWS", "GCP", "Azure"},
+    block_cloud_providers=frozenset({"AWS", "GCP", "Azure"}),
     blocked_user_agents=["badbot", "evil-crawler", "sqlmap"],
     enable_rate_limiting=True,
     rate_limit=30,
@@ -45,8 +54,8 @@ security_config = SecurityConfig(
     redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379"),
     redis_prefix=os.environ.get("REDIS_PREFIX", "flaskapi_guard:"),
     enforce_https=False,
-    custom_request_check=custom_request_check,
-    custom_response_modifier=custom_response_modifier,
+    custom_request_check=cast(Any, custom_request_check),
+    custom_response_modifier=cast(Any, custom_response_modifier),
     cloud_ip_refresh_interval=1800,
     log_format="json",
     security_headers={

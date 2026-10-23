@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
+from flask.typing import ResponseReturnValue
 
 from app.models import message_response, stats_response
 from app.security import guard
@@ -14,7 +15,7 @@ bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 @bp.route("/unban-ip", methods=["POST"])
 @guard.require_ip(whitelist=["127.0.0.1"])
-def unban_ip_address():
+def unban_ip_address() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     ip = data.get("ip", "")
     logger.info(f"Unbanning IP: {ip}")
@@ -28,7 +29,7 @@ def unban_ip_address():
 
 @bp.route("/stats")
 @guard.require_ip(whitelist=["127.0.0.1"])
-def get_security_stats():
+def get_security_stats() -> ResponseReturnValue:
     return jsonify(
         stats_response(
             total_requests=1500,
@@ -63,7 +64,7 @@ def get_security_stats():
 
 @bp.route("/clear-cache", methods=["POST"])
 @guard.require_ip(whitelist=["127.0.0.1"])
-def clear_security_cache():
+def clear_security_cache() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Security caches cleared",
@@ -80,7 +81,7 @@ def clear_security_cache():
 
 @bp.route("/emergency-mode", methods=["PUT"])
 @guard.require_ip(whitelist=["127.0.0.1"])
-def toggle_emergency_mode():
+def toggle_emergency_mode() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     enable = data.get("enable", False)
     mode = "enabled" if enable else "disabled"
@@ -97,7 +98,7 @@ def toggle_emergency_mode():
 
 @bp.route("/cloud-status")
 @guard.require_ip(whitelist=["127.0.0.1"])
-def cloud_status():
+def cloud_status() -> ResponseReturnValue:
     from app.security import security_config
 
     last_updated = {}

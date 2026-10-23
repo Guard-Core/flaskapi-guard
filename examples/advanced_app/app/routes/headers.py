@@ -1,6 +1,7 @@
 import logging
 
 from flask import Blueprint, jsonify, make_response, request
+from flask.typing import ResponseReturnValue
 
 from app.models import message_response
 
@@ -10,7 +11,7 @@ bp = Blueprint("headers", __name__, url_prefix="/headers")
 
 
 @bp.route("/")
-def security_headers_info():
+def security_headers_info() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "All responses include security headers",
@@ -33,7 +34,7 @@ def security_headers_info():
 
 
 @bp.route("/test-page")
-def security_headers_test_page():
+def security_headers_test_page() -> ResponseReturnValue:
     html = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -97,7 +98,7 @@ def security_headers_test_page():
 
 
 @bp.route("/csp-report", methods=["POST"])
-def receive_csp_report():
+def receive_csp_report() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     csp_report = data.get("csp-report", {})
     logger.warning(
@@ -120,7 +121,7 @@ def receive_csp_report():
 
 
 @bp.route("/frame-test")
-def frame_test():
+def frame_test() -> ResponseReturnValue:
     html = """<!DOCTYPE html>
 <html>
 <head><title>Frame Options Test</title></head>
@@ -136,7 +137,7 @@ def frame_test():
 
 
 @bp.route("/hsts-info")
-def hsts_info():
+def hsts_info() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "HSTS (HTTP Strict Transport Security) is active",
@@ -152,7 +153,7 @@ def hsts_info():
 
 
 @bp.route("/security-analysis")
-def security_analysis():
+def security_analysis() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Security analysis of current request",

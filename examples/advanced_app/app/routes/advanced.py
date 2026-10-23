@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from flask.typing import ResponseReturnValue
 
 from app.models import message_response
 from app.security import guard
@@ -8,7 +9,7 @@ bp = Blueprint("advanced", __name__, url_prefix="/advanced")
 
 @bp.route("/business-hours")
 @guard.time_window(start_time="09:00", end_time="17:00", timezone="UTC")
-def business_hours_only():
+def business_hours_only() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Access granted during business hours",
@@ -19,7 +20,7 @@ def business_hours_only():
 
 @bp.route("/weekend-only")
 @guard.time_window(start_time="00:00", end_time="23:59", timezone="UTC")
-def weekend_endpoint():
+def weekend_endpoint() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Weekend access endpoint",
@@ -32,7 +33,7 @@ def weekend_endpoint():
 
 @bp.route("/honeypot", methods=["POST"])
 @guard.honeypot_detection(["honeypot_field", "trap_input", "hidden_field"])
-def honeypot_detection():
+def honeypot_detection() -> ResponseReturnValue:
     return jsonify(
         message_response(
             "Human user verified",
@@ -43,7 +44,7 @@ def honeypot_detection():
 
 @bp.route("/suspicious-patterns")
 @guard.suspicious_detection(enabled=True)
-def detect_suspicious_patterns():
+def detect_suspicious_patterns() -> ResponseReturnValue:
     query = request.args.get("query")
     return jsonify(
         message_response(
