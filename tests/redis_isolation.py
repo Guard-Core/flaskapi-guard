@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 import pytest
 import redis
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 REDIS_URL = os.getenv("REDIS_URL") or "redis://localhost:6379"
 REDIS_PREFIX = os.getenv("REDIS_PREFIX") or "test:flaskapi_guard:"
@@ -52,10 +53,11 @@ def refuse_connections_to_the_default_redis_port(
 
 
 def point_security_config_defaults_at_the_test_redis() -> None:
-    fields = SecurityConfig.model_fields
-    fields["redis_url"].default = REDIS_URL
-    fields["redis_prefix"].default = REDIS_PREFIX
-    SecurityConfig.model_rebuild(force=True)
+    for config_class in (SecurityConfig, SecurityConfig[SyncGuardRequest]):
+        fields = config_class.model_fields
+        fields["redis_url"].default = REDIS_URL
+        fields["redis_prefix"].default = REDIS_PREFIX
+        config_class.model_rebuild(force=True)
 
 
 def delete_every_key_under_the_suite_prefix() -> None:
