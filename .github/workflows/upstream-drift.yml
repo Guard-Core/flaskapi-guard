@@ -47,8 +47,7 @@ jobs:
       - name: Build the guard-core wheel from guard-core@master
         run: |
           cd guard-core-upstream
-          pip install build
-          python -m build --wheel --outdir ../wheels
+          uv build --wheel --out-dir ../wheels
 
       - name: Install the flaskapi-guard dev environment
         run: |
