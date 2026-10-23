@@ -7,6 +7,7 @@ import pytest
 from flask import Flask
 from guard_core.models import SecurityConfig
 from guard_core.sync.decorators.base import BaseSecurityDecorator
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard.adapters import FlaskGuardRequest
 
@@ -44,7 +45,7 @@ def app() -> Flask:
 
 @pytest.fixture()
 def decorator() -> BaseSecurityDecorator:
-    config = SecurityConfig(enable_redis=False)
+    config = SecurityConfig[SyncGuardRequest](enable_redis=False)
     return BaseSecurityDecorator(config)
 
 

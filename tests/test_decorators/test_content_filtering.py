@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 from flask import Flask
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.adapters import FlaskGuardResponse
@@ -10,7 +11,7 @@ from flaskapi_guard.extension import FlaskAPIGuard
 
 
 @pytest.fixture
-def content_decorator_app(security_config: SecurityConfig) -> Flask:
+def content_decorator_app(security_config: SecurityConfig[SyncGuardRequest]) -> Flask:
     """Create Flask app with content filtering decorator integration."""
     app = Flask(__name__)
     app.config["TESTING"] = True
@@ -180,7 +181,7 @@ def test_content_filtering_endpoints_response(
 
 
 def test_content_filtering_decorators_unit(
-    security_config: SecurityConfig,
+    security_config: SecurityConfig[SyncGuardRequest],
 ) -> None:
     """Unit tests for content filtering decorators."""
     decorator = SecurityDecorator(security_config)
@@ -253,7 +254,9 @@ def test_content_filtering_decorators_unit(
     assert result is None
 
 
-def test_referrer_passive_mode(security_config: SecurityConfig) -> None:
+def test_referrer_passive_mode(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     """Test referrer check in passive mode."""
     app = Flask(__name__)
     app.config["TESTING"] = True

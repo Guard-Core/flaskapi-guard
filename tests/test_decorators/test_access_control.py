@@ -3,13 +3,14 @@ from unittest.mock import patch
 import pytest
 from flask import Flask
 from guard_core.sync.handlers.cloud_handler import cloud_handler
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.extension import FlaskAPIGuard
 
 
 @pytest.fixture
-def decorator_app(security_config: SecurityConfig) -> Flask:
+def decorator_app(security_config: SecurityConfig[SyncGuardRequest]) -> Flask:
     """Create Flask app with decorator integration using existing security_config."""
     app = Flask(__name__)
     app.config["TESTING"] = True

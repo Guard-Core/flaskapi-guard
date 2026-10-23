@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 from flask import Flask, Response
 from guard_core.models import BehaviorRuleConfig
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig
 from flaskapi_guard.adapters import FlaskGuardResponse, StreamedBodyUnavailable
@@ -37,7 +38,7 @@ class _Pulls:
             yield _chunk(index)
 
 
-def _config(**overrides: Any) -> SecurityConfig:
+def _config(**overrides: Any) -> SecurityConfig[SyncGuardRequest]:
     fields: dict[str, Any] = {
         "enable_redis": False,
         "enable_penetration_detection": False,
@@ -57,10 +58,10 @@ def _config(**overrides: Any) -> SecurityConfig:
         ),
     }
     fields.update(overrides)
-    return SecurityConfig(**fields)
+    return SecurityConfig[SyncGuardRequest](**fields)
 
 
-def _app(config: SecurityConfig, pulls: _Pulls, chunks: int) -> Flask:
+def _app(config: SecurityConfig[SyncGuardRequest], pulls: _Pulls, chunks: int) -> Flask:
     app = Flask(__name__)
     app.config["TESTING"] = True
 

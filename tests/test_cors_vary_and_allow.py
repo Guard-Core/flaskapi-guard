@@ -1,4 +1,5 @@
 from flask import Flask, Response, make_response
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig
 
@@ -9,7 +10,7 @@ def _app(**overrides: object) -> Flask:
     app = Flask(__name__)
     FlaskAPIGuard(
         app,
-        config=SecurityConfig(
+        config=SecurityConfig[SyncGuardRequest](
             enable_cors=True,
             cors_allow_origins=["https://app.example.com"],
             enable_redis=False,

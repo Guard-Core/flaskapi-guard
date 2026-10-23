@@ -2,13 +2,14 @@ from unittest.mock import Mock
 
 import pytest
 from flask import Flask
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.extension import FlaskAPIGuard
 
 
 @pytest.fixture
-def auth_decorator_app(security_config: SecurityConfig) -> Flask:
+def auth_decorator_app(security_config: SecurityConfig[SyncGuardRequest]) -> Flask:
     """Create Flask app with authentication decorator integration."""
     app = Flask(__name__)
     app.config["TESTING"] = True
@@ -326,7 +327,9 @@ def test_authentication_endpoints_response(auth_decorator_app: Flask) -> None:
         assert response.get_json()["message"] == "API key required (custom header)"
 
 
-def test_authentication_decorators_unit(security_config: SecurityConfig) -> None:
+def test_authentication_decorators_unit(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     """Unit tests for authentication decorators."""
     decorator = SecurityDecorator(security_config)
 
@@ -420,7 +423,7 @@ def test_authentication_failures_blocked(auth_decorator_app: Flask) -> None:
         assert "Authentication required" in response.data.decode()
 
 
-def test_auth_passive_mode(security_config: SecurityConfig) -> None:
+def test_auth_passive_mode(security_config: SecurityConfig[SyncGuardRequest]) -> None:
     """Test authentication check in passive mode."""
     app = Flask(__name__)
     app.config["TESTING"] = True

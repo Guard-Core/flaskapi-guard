@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 from flask import Blueprint, Flask
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard.extension import FlaskAPIGuard
 
@@ -28,7 +29,7 @@ def _tree(root: Path) -> Path:
 def _guard(app: Flask) -> FlaskAPIGuard:
     return FlaskAPIGuard(
         app,
-        config=SecurityConfig(
+        config=SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_penetration_detection=True,
             enable_rate_limiting=False,

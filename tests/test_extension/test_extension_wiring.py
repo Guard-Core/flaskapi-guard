@@ -1,11 +1,14 @@
 from flask import Flask
 from guard_core.sync.core.events.composite_handler import CompositeAgentHandler
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig
 
 
 def test_event_bus_routes_through_composite_when_otel_enabled() -> None:
-    config = SecurityConfig(enable_otel=True, otel_service_name="wire-test")
+    config = SecurityConfig[SyncGuardRequest](
+        enable_otel=True, otel_service_name="wire-test"
+    )
     app = Flask(__name__)
     ext = FlaskAPIGuard(app, config=config)
     ext._ensure_initialized()
@@ -17,7 +20,9 @@ def test_event_bus_routes_through_composite_when_otel_enabled() -> None:
 
 
 def test_event_bus_routes_through_composite_when_logfire_enabled() -> None:
-    config = SecurityConfig(enable_logfire=True, logfire_service_name="wire-test")
+    config = SecurityConfig[SyncGuardRequest](
+        enable_logfire=True, logfire_service_name="wire-test"
+    )
     app = Flask(__name__)
     ext = FlaskAPIGuard(app, config=config)
     ext._ensure_initialized()
@@ -29,7 +34,7 @@ def test_event_bus_routes_through_composite_when_logfire_enabled() -> None:
 
 
 def test_event_bus_stays_bare_when_no_telemetry_configured() -> None:
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     app = Flask(__name__)
     ext = FlaskAPIGuard(app, config=config)
 
@@ -40,7 +45,9 @@ def test_event_bus_stays_bare_when_no_telemetry_configured() -> None:
 
 
 def test_contexts_use_the_post_initialize_event_bus() -> None:
-    config = SecurityConfig(enable_otel=True, otel_service_name="wire-test")
+    config = SecurityConfig[SyncGuardRequest](
+        enable_otel=True, otel_service_name="wire-test"
+    )
     app = Flask(__name__)
     ext = FlaskAPIGuard(app, config=config)
 
@@ -60,7 +67,7 @@ def test_populate_guard_state_marks_unmatched_request() -> None:
     from flaskapi_guard.adapters import FlaskGuardRequest
 
     app = Flask(__name__)
-    ext = FlaskAPIGuard(app, config=SecurityConfig())
+    ext = FlaskAPIGuard(app, config=SecurityConfig[SyncGuardRequest]())
 
     @app.get("/known")
     def known() -> str:
@@ -87,7 +94,7 @@ def test_populate_guard_state_marks_endpoint_without_view_function() -> None:
     from flaskapi_guard.adapters import FlaskGuardRequest
 
     app = Flask(__name__)
-    ext = FlaskAPIGuard(app, config=SecurityConfig())
+    ext = FlaskAPIGuard(app, config=SecurityConfig[SyncGuardRequest]())
 
     @app.get("/known")
     def known() -> str:

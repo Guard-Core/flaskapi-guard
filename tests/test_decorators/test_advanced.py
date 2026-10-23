@@ -3,13 +3,14 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from flask import Flask
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.extension import FlaskAPIGuard
 
 
 @pytest.fixture
-def advanced_decorator_app(security_config: SecurityConfig) -> Flask:
+def advanced_decorator_app(security_config: SecurityConfig[SyncGuardRequest]) -> Flask:
     """Create Flask app with advanced decorator integration."""
     app = Flask(__name__)
     app.config["TESTING"] = True
@@ -227,7 +228,9 @@ def test_honeypot_detection_basic_functionality(
         assert response.status_code == 200
 
 
-def test_honeypot_form_detection(security_config: SecurityConfig) -> None:
+def test_honeypot_form_detection(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     decorator = SecurityDecorator(security_config)
     mock_func = Mock()
     mock_func.__name__ = mock_func.__qualname__ = "test_func"
@@ -255,7 +258,9 @@ def test_honeypot_form_detection(security_config: SecurityConfig) -> None:
     assert result.status_code == 403
 
 
-def test_honeypot_json_exception(security_config: SecurityConfig) -> None:
+def test_honeypot_json_exception(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     decorator = SecurityDecorator(security_config)
     mock_func = Mock()
     mock_func.__name__ = mock_func.__qualname__ = "test_func"
@@ -281,7 +286,9 @@ def test_honeypot_json_exception(security_config: SecurityConfig) -> None:
     assert result is None
 
 
-def test_honeypot_json_detection(security_config: SecurityConfig) -> None:
+def test_honeypot_json_detection(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     decorator = SecurityDecorator(security_config)
     mock_func = Mock()
     mock_func.__name__ = mock_func.__qualname__ = "test_func"

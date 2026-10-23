@@ -2,13 +2,16 @@ from unittest.mock import Mock
 
 import pytest
 from flask import Flask
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.extension import FlaskAPIGuard
 
 
 @pytest.fixture
-def rate_limiting_decorator_app(security_config: SecurityConfig) -> Flask:
+def rate_limiting_decorator_app(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> Flask:
     """Create Flask app with rate limiting decorator integration."""
     app = Flask(__name__)
     app.config["TESTING"] = True
@@ -121,7 +124,9 @@ def test_rate_limiting_endpoints_response(
         )
 
 
-def test_rate_limiting_decorators_unit(security_config: SecurityConfig) -> None:
+def test_rate_limiting_decorators_unit(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     """Unit tests for rate limiting decorators."""
     decorator = SecurityDecorator(security_config)
 
@@ -156,7 +161,9 @@ def test_geo_rate_limit_without_a_geoip_database_refuses_to_start_by_default() -
     """A geo rate limit with no GeoIP database refuses to start."""
     app = Flask(__name__)
     app.config["TESTING"] = True
-    config = SecurityConfig(enable_redis=False, enable_penetration_detection=False)
+    config = SecurityConfig[SyncGuardRequest](
+        enable_redis=False, enable_penetration_detection=False
+    )
     decorator = SecurityDecorator(config)
 
     @app.route("/geo-rate-limited")

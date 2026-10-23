@@ -6,6 +6,7 @@ import pytest
 from flask import Flask
 from guard_core.models import BehaviorRuleConfig
 from guard_core.sync.handlers.behavior_handler import BehaviorRule
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.extension import FlaskAPIGuard
@@ -13,7 +14,7 @@ from flaskapi_guard.extension import FlaskAPIGuard
 _IPS = itertools.count(1)
 
 
-def _config(**overrides: Any) -> SecurityConfig:
+def _config(**overrides: Any) -> SecurityConfig[SyncGuardRequest]:
     fields: dict[str, Any] = {
         "enable_redis": False,
         "enable_penetration_detection": False,
@@ -23,10 +24,10 @@ def _config(**overrides: Any) -> SecurityConfig:
         "ban_on_hostile_signals": False,
     }
     fields.update(overrides)
-    return SecurityConfig(**fields)
+    return SecurityConfig[SyncGuardRequest](**fields)
 
 
-def _app(config: SecurityConfig) -> Flask:
+def _app(config: SecurityConfig[SyncGuardRequest]) -> Flask:
     app = Flask(__name__)
     app.config["TESTING"] = True
     decorator = SecurityDecorator(config)
@@ -49,7 +50,9 @@ def _app(config: SecurityConfig) -> Flask:
     return app
 
 
-def _responses(config: SecurityConfig, paths: list[str]) -> list[tuple[int, Any]]:
+def _responses(
+    config: SecurityConfig[SyncGuardRequest], paths: list[str]
+) -> list[tuple[int, Any]]:
     client = _app(config).test_client()
     ip = f"198.51.100.{next(_IPS)}"
     responses = [client.get(path, headers={"X-Forwarded-For": ip}) for path in paths]

@@ -5,12 +5,13 @@ from flask import Flask
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.sync.handlers.redis_handler import RedisManager
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard
 
 
 def test_init_rebinds_agent_handler_to_composite() -> None:
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_otel=True,
         otel_service_name="guard-test",
         otel_exporter_endpoint="http://localhost:4318",
@@ -27,7 +28,9 @@ def test_init_rebinds_agent_handler_to_composite() -> None:
 
 def test_no_telemetry_leaves_agent_handler_bare() -> None:
     app = Flask(__name__)
-    extension = FlaskAPIGuard(app, config=SecurityConfig(enable_redis=False))
+    extension = FlaskAPIGuard(
+        app, config=SecurityConfig[SyncGuardRequest](enable_redis=False)
+    )
 
     assert extension.handler_initializer is not None
     assert extension.handler_initializer.composite_handler is None
@@ -35,7 +38,7 @@ def test_no_telemetry_leaves_agent_handler_bare() -> None:
 
 
 def test_behavior_tracker_threaded_through_behavioral_context() -> None:
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_agent=True,
         agent_api_key="k" * 10,
         agent_project_id="p",
@@ -58,7 +61,7 @@ def test_behavior_tracker_threaded_through_behavioral_context() -> None:
 
 
 def test_resolve_config_uses_preset_config_when_arg_is_none() -> None:
-    preset = SecurityConfig(enable_redis=False)
+    preset = SecurityConfig[SyncGuardRequest](enable_redis=False)
     extension = FlaskAPIGuard(config=preset)
     app = Flask(__name__)
 
@@ -101,7 +104,9 @@ def test_execute_security_pipeline_returns_none_when_pipeline_absent() -> None:
 
 
 def test_set_decorator_handler_skips_app_extension_when_entry_not_dict() -> None:
-    config = SecurityConfig(enable_redis=False, enable_penetration_detection=False)
+    config = SecurityConfig[SyncGuardRequest](
+        enable_redis=False, enable_penetration_detection=False
+    )
     app = Flask(__name__)
     extension = FlaskAPIGuard(app, config=config)
 
@@ -113,7 +118,9 @@ def test_set_decorator_handler_skips_app_extension_when_entry_not_dict() -> None
 
 
 def test_redis_unavailable_at_first_request_returns_503_and_retries() -> None:
-    config = SecurityConfig(enable_redis=True, enable_penetration_detection=False)
+    config = SecurityConfig[SyncGuardRequest](
+        enable_redis=True, enable_penetration_detection=False
+    )
     app = Flask(__name__)
 
     @app.route("/")
@@ -145,7 +152,7 @@ def test_redis_unavailable_at_first_request_returns_503_and_retries() -> None:
 
 
 def test_redis_stays_off_by_default_so_the_first_request_never_connects() -> None:
-    config = SecurityConfig(enable_penetration_detection=False)
+    config = SecurityConfig[SyncGuardRequest](enable_penetration_detection=False)
     app = Flask(__name__)
 
     @app.route("/")

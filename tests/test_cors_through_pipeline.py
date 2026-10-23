@@ -3,6 +3,7 @@ from collections.abc import Generator
 import pytest
 from flask import Flask
 from guard_core.sync.handlers.ratelimit_handler import _managers, _managers_lock
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig
 
@@ -19,7 +20,7 @@ def reset_rate_limit_singleton() -> Generator[None, None, None]:
 @pytest.fixture
 def app() -> Flask:
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_cors=True,
         cors_allow_origins=["https://app.example.com"],
         cors_allow_methods=["GET", "POST"],
@@ -79,7 +80,7 @@ def test_normal_request_carries_cors_headers(app: Flask) -> None:
 @pytest.fixture
 def app_with_passthrough() -> Flask:
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_cors=True,
         cors_allow_origins=["https://app.example.com"],
         cors_allow_methods=["GET", "POST"],

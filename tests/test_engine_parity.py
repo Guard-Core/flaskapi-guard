@@ -11,6 +11,7 @@ from flask import Flask
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.handlers.ipban_handler import reset_global_state
 from guard_core.sync.handlers.security_headers_handler import SecurityHeadersManager
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.extension import FlaskAPIGuard
@@ -34,7 +35,7 @@ def _build(
         "security_headers": {"enabled": True},
     }
     base.update(overrides)
-    config = SecurityConfig(**base)
+    config = SecurityConfig[SyncGuardRequest](**base)
     app = Flask(__name__)
     app.config["TESTING"] = True
     guard = FlaskAPIGuard(app, config=config)

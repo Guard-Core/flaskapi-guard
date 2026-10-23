@@ -3,6 +3,7 @@ from typing import Any
 import pytest
 from flask import Flask
 from flask import request as flask_request
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig
 from flaskapi_guard.adapters import FlaskGuardRequest
@@ -14,7 +15,7 @@ def _app_and_extension(
     **login_options: Any,
 ) -> tuple[Flask, FlaskAPIGuard]:
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_rate_limiting=True,
         rate_limit=1000,
@@ -144,7 +145,7 @@ def test_request_identity_is_not_built_without_endpoint_limits() -> None:
 
 def test_separate_slash_and_no_slash_routes_count_against_their_own_key() -> None:
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_rate_limiting=True,
         rate_limit=1000,

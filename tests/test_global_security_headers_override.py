@@ -4,6 +4,7 @@ from collections.abc import Generator
 import pytest
 from flask import Flask
 from guard_core.sync.handlers.security_headers_handler import security_headers_manager
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig
 
@@ -19,7 +20,7 @@ def _clean_global_manager() -> Generator[None, None, None]:
     security_headers_manager.reset()
 
 
-def _config(**overrides: object) -> SecurityConfig:
+def _config(**overrides: object) -> SecurityConfig[SyncGuardRequest]:
     values: dict[str, object] = {
         "enable_redis": False,
         "enable_rate_limiting": False,
@@ -31,10 +32,10 @@ def _config(**overrides: object) -> SecurityConfig:
         },
     }
     values.update(overrides)
-    return SecurityConfig(**values)  # type: ignore[arg-type]
+    return SecurityConfig[SyncGuardRequest](**values)  # type: ignore[arg-type]
 
 
-def _app(config: SecurityConfig) -> tuple[Flask, FlaskAPIGuard]:
+def _app(config: SecurityConfig[SyncGuardRequest]) -> tuple[Flask, FlaskAPIGuard]:
     app = Flask(__name__)
     guard = FlaskAPIGuard(app, config=config)
 

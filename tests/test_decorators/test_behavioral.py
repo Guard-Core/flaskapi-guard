@@ -4,13 +4,16 @@ from unittest.mock import Mock
 import pytest
 from flask import Flask
 from guard_core.sync.handlers.behavior_handler import BehaviorRule
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.extension import FlaskAPIGuard
 
 
 @pytest.fixture
-def behavioral_decorator_app(security_config: SecurityConfig) -> Flask:
+def behavioral_decorator_app(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> Flask:
     """Create Flask app with behavioral decorator integration."""
     app = Flask(__name__)
     app.config["TESTING"] = True
@@ -295,7 +298,9 @@ def test_behavioral_endpoints_response(
         )
 
 
-def test_behavioral_decorators_unit(security_config: SecurityConfig) -> None:
+def test_behavioral_decorators_unit(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     """Unit tests for behavioral decorators."""
     security_config.behavior_scan_response_body = True
     decorator = SecurityDecorator(security_config)

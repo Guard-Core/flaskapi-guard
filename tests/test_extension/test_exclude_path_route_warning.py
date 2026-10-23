@@ -3,13 +3,14 @@ import logging
 import pytest
 from flask import Blueprint, Flask
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard.extension import FlaskAPIGuard
 
 
 def _app(entries: list[str]) -> tuple[Flask, FlaskAPIGuard]:
     app = Flask(__name__, static_folder=None)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         exclude_paths=entries,

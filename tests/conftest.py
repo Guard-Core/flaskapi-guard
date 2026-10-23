@@ -12,6 +12,7 @@ from guard_core.sync.handlers.ipban_handler import reset_global_state
 from guard_core.sync.handlers.ipinfo_handler import IPInfoManager
 from guard_core.sync.handlers.ratelimit_handler import rate_limit_handler
 from guard_core.sync.handlers.suspatterns_handler import sus_patterns_handler
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard.extension import FlaskAPIGuard
 from tests.redis_isolation import (
@@ -71,8 +72,8 @@ def reset_state() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def security_config() -> SecurityConfig:
-    return SecurityConfig(
+def security_config() -> SecurityConfig[SyncGuardRequest]:
+    return SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN, None)),
         enable_redis=False,
         enable_penetration_detection=False,
@@ -99,7 +100,7 @@ def security_config() -> SecurityConfig:
 
 @pytest.fixture
 def flaskapi_guard_app() -> Generator[tuple[Flask, FlaskAPIGuard], None, None]:
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         enable_penetration_detection=False,
         whitelist=(),
@@ -120,8 +121,8 @@ def ipinfo_db_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture
-def security_config_redis(ipinfo_db_path: Path) -> SecurityConfig:
-    return SecurityConfig(
+def security_config_redis(ipinfo_db_path: Path) -> SecurityConfig[SyncGuardRequest]:
+    return SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN, ipinfo_db_path)),
         redis_url=REDIS_URL,
         redis_prefix=REDIS_PREFIX,
@@ -155,7 +156,7 @@ def redis_cleanup() -> None:
 @pytest.fixture(autouse=True)
 def reset_rate_limiter() -> None:
     try:
-        config = SecurityConfig(
+        config = SecurityConfig[SyncGuardRequest](
             geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN, None)),
             enable_redis=False,
         )

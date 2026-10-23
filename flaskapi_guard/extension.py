@@ -27,6 +27,7 @@ from guard_core.sync.handlers.cors_handler import (
 from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 from guard_core.sync.handlers.security_headers_handler import security_headers_manager
 from guard_core.sync.protocols.middleware_protocol import SyncGuardMiddlewareProtocol
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from guard_core.sync.utils import extract_client_ip, setup_custom_logging
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import safe_join
@@ -49,9 +50,9 @@ class FlaskAPIGuard:
         self,
         app: Flask | None = None,
         *,
-        config: SecurityConfig | None = None,
+        config: "SecurityConfig[SyncGuardRequest] | None" = None,
     ) -> None:
-        self.config: SecurityConfig | None = config
+        self.config: SecurityConfig[SyncGuardRequest] | None = config
         self.logger: logging.Logger | None = None
         self.last_cloud_ip_refresh: int = 0
         self.suspicious_request_counts: dict[str, dict[str, int]] = {}
@@ -79,7 +80,9 @@ class FlaskAPIGuard:
         if app is not None:
             self.init_app(app, config=config)
 
-    def _resolve_config(self, config: SecurityConfig | None) -> None:
+    def _resolve_config(
+        self, config: "SecurityConfig[SyncGuardRequest] | None"
+    ) -> None:
         if config is not None:
             self.config = config
         elif self.config is None:
@@ -210,7 +213,9 @@ class FlaskAPIGuard:
             rule.action == "throttle" for rule in self.config.global_behavior_rules
         )
 
-    def init_app(self, app: Flask, config: SecurityConfig | None = None) -> None:
+    def init_app(
+        self, app: Flask, config: "SecurityConfig[SyncGuardRequest] | None" = None
+    ) -> None:
         self._resolve_config(config)
         assert self.config is not None
 
@@ -326,7 +331,9 @@ class FlaskAPIGuard:
             f"{self.security_pipeline.get_check_names()}"
         )
 
-    def _configure_security_headers(self, config: SecurityConfig) -> None:
+    def _configure_security_headers(
+        self, config: "SecurityConfig[SyncGuardRequest]"
+    ) -> None:
         if not config.security_headers:
             security_headers_manager.enabled = False
             return

@@ -2,13 +2,14 @@ from unittest.mock import MagicMock
 
 from flask import Flask
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard
 
 
 def test_agent_stats_returns_disabled_when_agent_handler_unset() -> None:
     app = Flask(__name__)
-    config = SecurityConfig(enable_agent=False)
+    config = SecurityConfig[SyncGuardRequest](enable_agent=False)
     guard = FlaskAPIGuard(app, config=config)
 
     assert guard.agent_handler is None
@@ -17,7 +18,7 @@ def test_agent_stats_returns_disabled_when_agent_handler_unset() -> None:
 
 def test_agent_stats_returns_enabled_with_agent_handler_stats() -> None:
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     fake_handler = MagicMock()
@@ -36,7 +37,7 @@ def test_agent_stats_returns_enabled_with_agent_handler_stats() -> None:
 
 def test_agent_stats_reflects_live_drop_counter_increments() -> None:
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     fake_handler = MagicMock()

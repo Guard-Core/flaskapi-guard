@@ -7,6 +7,7 @@ from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.decorators.base import RouteConfig
 from guard_core.sync.detection_result import DetectionResult
 from guard_core.sync.handlers.behavior_handler import BehaviorRule
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.adapters import FlaskGuardResponse
@@ -16,7 +17,7 @@ from flaskapi_guard.extension import FlaskAPIGuard
 def test_set_decorator_handler() -> None:
     """Test set_decorator_handler method."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     decorator = SecurityDecorator(config)
@@ -31,7 +32,7 @@ def test_set_decorator_handler() -> None:
 def test_get_endpoint_id_with_route() -> None:
     """Test _get_endpoint_id method with route in scope."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     mock_request = Mock()
@@ -58,7 +59,7 @@ def test_get_endpoint_id_with_route() -> None:
 def test_should_bypass_check() -> None:
     """Test should_bypass_check method (via route_resolver)."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     assert guard.route_resolver is not None
@@ -77,7 +78,7 @@ def test_should_bypass_check() -> None:
 def test_check_route_ip_access_invalid_ip() -> None:
     """Test _check_route_ip_access with invalid IP."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     mock_route_config = Mock()
@@ -93,7 +94,7 @@ def test_check_route_ip_access_invalid_ip() -> None:
 def test_check_route_ip_access_blacklist() -> None:
     """Test _check_route_ip_access with IP blacklist."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     mock_route_config = Mock()
@@ -115,7 +116,7 @@ def test_check_route_ip_access_blacklist() -> None:
 def test_check_route_ip_access_whitelist() -> None:
     """Test _check_route_ip_access with IP whitelist."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     mock_route_config = Mock()
@@ -137,7 +138,7 @@ def test_check_route_ip_access_whitelist() -> None:
 def test_check_route_ip_access_countries() -> None:
     """Test _check_route_ip_access with country restrictions."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     mock_geo_handler = Mock()
@@ -173,7 +174,7 @@ def test_check_route_ip_access_countries() -> None:
 def test_check_user_agent_allowed() -> None:
     """Test _check_user_agent_allowed method."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     mock_route_config = Mock()
@@ -197,7 +198,7 @@ def test_check_user_agent_allowed() -> None:
 def test_time_window_error_handling() -> None:
     """Test time window check error handling."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     assert guard.validator is not None
@@ -212,7 +213,7 @@ def test_time_window_error_handling() -> None:
 def test_time_window_overnight() -> None:
     """Test time window check with overnight window."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     time_restrictions = {"start": "22:00", "end": "06:00"}
@@ -236,7 +237,7 @@ def test_time_window_overnight() -> None:
 def test_time_window_normal() -> None:
     """Test time window check with normal window."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     time_restrictions = {"start": "09:00", "end": "17:00"}
@@ -255,7 +256,7 @@ def test_time_window_normal() -> None:
 def test_behavioral_rules_without_guard_decorator() -> None:
     """Test behavioral rule processing when guard_decorator is None."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     guard.guard_decorator = None
@@ -276,7 +277,7 @@ def test_behavioral_rules_without_guard_decorator() -> None:
 def test_behavioral_usage_rules_with_decorator() -> None:
     """Test behavioral usage rule processing with guard decorator."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     mock_guard_decorator = Mock()
@@ -322,7 +323,7 @@ def test_behavioral_usage_rules_with_decorator() -> None:
 def test_behavioral_return_rules_with_decorator() -> None:
     """Test behavioral return rule processing with guard decorator."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     mock_guard_decorator = Mock()
@@ -370,7 +371,7 @@ def test_behavioral_return_rules_with_decorator() -> None:
 
 def test_get_route_decorator_config_no_route_id() -> None:
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     assert guard.route_resolver is not None
@@ -386,7 +387,7 @@ def test_get_route_decorator_config_no_route_id() -> None:
 
 def test_get_route_decorator_config_no_guard_decorator() -> None:
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     guard.set_decorator_handler(None)
@@ -406,7 +407,7 @@ def test_get_route_decorator_config_no_guard_decorator() -> None:
 def test_get_route_decorator_config_fallback_to_guard_decorator() -> None:
     """Test get_route_config falls back to guard_decorator."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     decorator = SecurityDecorator(config)
@@ -424,7 +425,7 @@ def test_get_route_decorator_config_fallback_to_guard_decorator() -> None:
 def test_get_route_decorator_config_no_matching_route() -> None:
     """Test get_route_config (via route_resolver) when no matching route is found."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     guard = FlaskAPIGuard(app, config=config)
 
     decorator = SecurityDecorator(config)
@@ -442,7 +443,7 @@ def test_get_route_decorator_config_no_matching_route() -> None:
 def test_bypass_all_security_checks() -> None:
     """Test bypassing all security checks when 'all' is in bypassed_checks."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
 
     mock_route_config = RouteConfig()
     mock_route_config.bypassed_checks = {"all"}
@@ -472,7 +473,7 @@ def test_bypass_all_security_checks_with_custom_modifier() -> None:
     def custom_modifier(response: GuardResponse) -> FlaskGuardResponse:
         return FlaskGuardResponse(Response("custom modified", status=202))
 
-    config = SecurityConfig(custom_response_modifier=custom_modifier)
+    config = SecurityConfig[SyncGuardRequest](custom_response_modifier=custom_modifier)
 
     decorator = SecurityDecorator(config)
 
@@ -535,7 +536,7 @@ def test_route_specific_extension_validations(
 ) -> None:
     """Parametrized test for route-specific extension validation features."""
     app = Flask(__name__)
-    config = SecurityConfig()
+    config = SecurityConfig[SyncGuardRequest]()
     config.enable_penetration_detection = False
 
     decorator = SecurityDecorator(config)
@@ -576,7 +577,7 @@ def test_route_specific_extension_validations(
 
 def test_route_specific_rate_limit_counts_apart_from_the_global_limit() -> None:
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         rate_limit=1000,

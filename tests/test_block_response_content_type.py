@@ -6,6 +6,7 @@ from guard_core.models import SecurityConfig
 from guard_core.protocols.geo_ip_protocol import GeoIPHandler
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.handlers.ipinfo_handler import IPInfoManager
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard.extension import FlaskAPIGuard
 
@@ -14,8 +15,8 @@ IPINFO_TOKEN = str(os.getenv("IPINFO_TOKEN"))
 BLOCKED_IP = "203.0.113.10"
 
 
-def _config(**overrides: object) -> SecurityConfig:
-    return SecurityConfig(
+def _config(**overrides: object) -> SecurityConfig[SyncGuardRequest]:
+    return SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         blacklist=(BLOCKED_IP,),
         enable_rate_limiting=False,
@@ -26,7 +27,9 @@ def _config(**overrides: object) -> SecurityConfig:
     )
 
 
-def _blocked_response_headers(config: SecurityConfig) -> tuple[int, str, str]:
+def _blocked_response_headers(
+    config: SecurityConfig[SyncGuardRequest],
+) -> tuple[int, str, str]:
     app = Flask(__name__)
     FlaskAPIGuard(app, config=config)
 

@@ -11,6 +11,7 @@ import pytest
 from flask import Flask, request
 from guard_core.exceptions import BodyReadStalledError
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from werkzeug.serving import make_server as make_werkzeug_server
 
 from flaskapi_guard.adapters import FlaskGuardRequest
@@ -196,7 +197,7 @@ def _guarded_app(**overrides: Any) -> Flask:
         "ban_on_hostile_signals": False,
     }
     fields.update(overrides)
-    FlaskAPIGuard(app, config=SecurityConfig(**fields))
+    FlaskAPIGuard(app, config=SecurityConfig[SyncGuardRequest](**fields))
 
     @app.post("/echo")
     def echo() -> dict[str, int]:
@@ -301,7 +302,7 @@ def _route_app() -> Flask:
     app = Flask(__name__)
     FlaskAPIGuard(
         app,
-        config=SecurityConfig(
+        config=SecurityConfig[SyncGuardRequest](
             enable_redis=False,
             enable_penetration_detection=True,
             enable_rate_limiting=False,

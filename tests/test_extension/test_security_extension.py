@@ -15,6 +15,7 @@ from guard_core.sync.handlers.cloud_handler import cloud_handler
 from guard_core.sync.handlers.ipinfo_handler import IPInfoManager
 from guard_core.sync.handlers.ratelimit_handler import rate_limit_handler
 from guard_core.sync.handlers.redis_handler import redis_handler
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from redis.exceptions import RedisError
 
 from flaskapi_guard.adapters import FlaskGuardRequest, FlaskGuardResponse
@@ -29,7 +30,7 @@ def test_rate_limiting() -> None:
     of the FlaskAPIGuard extension.
     """
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         enable_penetration_detection=False,
         rate_limit=2,
@@ -65,7 +66,7 @@ def test_ip_whitelist_blacklist() -> None:
     functionality of the FlaskAPIGuard extension.
     """
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         whitelist=("127.0.0.1",),
         blacklist=("192.168.1.1",),
@@ -96,7 +97,7 @@ def test_user_agent_filtering() -> None:
     functionality of the FlaskAPIGuard extension.
     """
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         enable_penetration_detection=False,
         blocked_user_agents=[r"badbot"],
@@ -122,7 +123,7 @@ def test_rate_limiting_multiple_ips(reset_state: None) -> None:
     of the FlaskAPIGuard extension with multiple IPs.
     """
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         rate_limit=2,
         rate_limit_window=1,
@@ -167,7 +168,7 @@ def test_custom_request_check() -> None:
             return FlaskGuardResponse(Response("Custom block", status=403))
         return None
 
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         enable_penetration_detection=False,
         custom_request_check=custom_check,
@@ -193,7 +194,7 @@ def test_custom_error_responses() -> None:
     Test the custom error responses.
     """
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         blacklist=("192.168.1.3",),
         custom_error_responses={
@@ -332,7 +333,7 @@ def test_custom_response_modifier_parameterized(
         config_args["custom_request_check"] = custom_check
 
     config_args.update(extra_config)
-    config = SecurityConfig(**config_args)
+    config = SecurityConfig[SyncGuardRequest](**config_args)
 
     FlaskAPIGuard(app, config=config)
 
@@ -358,7 +359,7 @@ def test_custom_response_modifier_parameterized(
 
 def test_cloud_ip_blocking() -> None:
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         enable_penetration_detection=False,
         block_cloud_providers=frozenset({"AWS", "GCP", "Azure"}),
@@ -383,7 +384,7 @@ def test_cloud_ip_blocking() -> None:
 
 def test_excluded_paths() -> None:
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         enable_penetration_detection=False,
         exclude_paths=["/health"],
@@ -403,7 +404,7 @@ def test_excluded_paths() -> None:
 def test_cleanup_expired_request_times() -> None:
     """Test cleanup of expired request times"""
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         enable_penetration_detection=False,
         rate_limit=2,
@@ -433,7 +434,7 @@ def test_cleanup_expired_request_times() -> None:
 def test_penetration_detection_disabled() -> None:
     """Test when penetration detection is disabled"""
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         enable_penetration_detection=False,
     )
@@ -456,7 +457,9 @@ def test_penetration_detection_disabled() -> None:
         assert response.status_code == 200
 
 
-def test_redis_initialization(security_config_redis: SecurityConfig) -> None:
+def test_redis_initialization(
+    security_config_redis: SecurityConfig[SyncGuardRequest],
+) -> None:
     """Test Redis initialization in FlaskAPIGuard"""
     app = Flask(__name__)
 
@@ -494,7 +497,7 @@ def test_redis_initialization(security_config_redis: SecurityConfig) -> None:
 
 
 def test_redis_initialization_without_ipinfo_and_cloud(
-    security_config_redis: SecurityConfig,
+    security_config_redis: SecurityConfig[SyncGuardRequest],
 ) -> None:
     """Test Redis initialization in FlaskAPIGuard"""
     app = Flask(__name__)
@@ -533,7 +536,7 @@ def test_redis_initialization_without_ipinfo_and_cloud(
         rate_init.assert_called_once()
 
 
-def test_redis_disabled(security_config: SecurityConfig) -> None:
+def test_redis_disabled(security_config: SecurityConfig[SyncGuardRequest]) -> None:
     """Test guard behavior when Redis is disabled"""
     app = Flask(__name__)
     security_config.enable_redis = False
@@ -548,7 +551,7 @@ def test_redis_disabled(security_config: SecurityConfig) -> None:
 def test_rate_limiting_disabled() -> None:
     """Test when rate limiting is disabled"""
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         enable_penetration_detection=False,
         enable_rate_limiting=False,
@@ -566,7 +569,9 @@ def test_rate_limiting_disabled() -> None:
             assert response.status_code == 200
 
 
-def test_rate_limiting_with_redis(security_config_redis: SecurityConfig) -> None:
+def test_rate_limiting_with_redis(
+    security_config_redis: SecurityConfig[SyncGuardRequest],
+) -> None:
     """Test rate limiting with Redis"""
 
     app = Flask(__name__)
@@ -603,7 +608,7 @@ def test_rate_limiting_with_redis(security_config_redis: SecurityConfig) -> None
 
 
 def test_rate_limit_reset_with_redis_errors(
-    security_config_redis: SecurityConfig,
+    security_config_redis: SecurityConfig[SyncGuardRequest],
 ) -> None:
     """Test rate limit reset handling Redis errors"""
 
@@ -633,7 +638,7 @@ def test_rate_limit_reset_with_redis_errors(
 def test_passive_mode_penetration_detection() -> None:
     """Test penetration detection in passive mode"""
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         passive_mode=True,
         whitelist=(),
@@ -663,7 +668,7 @@ def test_passive_mode_penetration_detection() -> None:
 def test_sliding_window_rate_limiting() -> None:
     """Test that sliding window rate limiting works correctly"""
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         enable_penetration_detection=False,
         rate_limit=3,
@@ -694,7 +699,9 @@ def test_sliding_window_rate_limiting() -> None:
         assert response.status_code == 200
 
 
-def test_rate_limiter_deque_cleanup(security_config: SecurityConfig) -> None:
+def test_rate_limiter_deque_cleanup(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     """Test cleanup of old requests from the deque"""
     handler = rate_limit_handler(security_config)
     handler.reset()
@@ -773,7 +780,9 @@ def _evalsha_calls(handler: Any) -> int:
     return int(stats.get("calls", 0))
 
 
-def test_lua_script_execution(security_config_redis: SecurityConfig) -> None:
+def test_lua_script_execution(
+    security_config_redis: SecurityConfig[SyncGuardRequest],
+) -> None:
     """The Lua script is loaded and used for rate limiting with Redis"""
     app = Flask(__name__)
     config = security_config_redis
@@ -801,7 +810,9 @@ def test_lua_script_execution(security_config_redis: SecurityConfig) -> None:
         handler.redis_handler.delete_pattern("rate_limit:rate:*")
 
 
-def test_fallback_to_pipeline(security_config_redis: SecurityConfig) -> None:
+def test_fallback_to_pipeline(
+    security_config_redis: SecurityConfig[SyncGuardRequest],
+) -> None:
     """Rate limiting still works on Redis when the Lua script is not loaded"""
     app = Flask(__name__)
     config = security_config_redis
@@ -830,7 +841,9 @@ def test_fallback_to_pipeline(security_config_redis: SecurityConfig) -> None:
         handler.redis_handler.delete_pattern("rate_limit:rate:*")
 
 
-def test_rate_limiter_redis_errors(security_config_redis: SecurityConfig) -> None:
+def test_rate_limiter_redis_errors(
+    security_config_redis: SecurityConfig[SyncGuardRequest],
+) -> None:
     """Test Redis error handling in rate limit check"""
     app = Flask(__name__)
     config = security_config_redis
@@ -916,7 +929,7 @@ def test_rate_limiter_redis_errors(security_config_redis: SecurityConfig) -> Non
 
 
 def test_rate_limiter_init_redis_exception(
-    security_config_redis: SecurityConfig,
+    security_config_redis: SecurityConfig[SyncGuardRequest],
 ) -> None:
     """Test exception handling during Redis script loading"""
     handler = rate_limit_handler(security_config_redis)
@@ -940,7 +953,7 @@ def test_rate_limiter_init_redis_exception(
 
 
 def test_ipv6_rate_limiting(
-    security_config_redis: SecurityConfig, clean_rate_limiter: None
+    security_config_redis: SecurityConfig[SyncGuardRequest], clean_rate_limiter: None
 ) -> None:
     """
     Test the rate limiting functionality
@@ -980,7 +993,9 @@ def test_ipv6_rate_limiting(
         assert response.status_code == 200
 
 
-def test_ipv6_whitelist_blacklist(security_config_redis: SecurityConfig) -> None:
+def test_ipv6_whitelist_blacklist(
+    security_config_redis: SecurityConfig[SyncGuardRequest],
+) -> None:
     """
     Test the IPv6 whitelist/blacklist
     functionality of the FlaskAPIGuard extension.
@@ -1013,7 +1028,7 @@ def test_ipv6_whitelist_blacklist(security_config_redis: SecurityConfig) -> None
 
 
 def test_ipv6_cidr_whitelist_blacklist(
-    security_config_redis: SecurityConfig,
+    security_config_redis: SecurityConfig[SyncGuardRequest],
 ) -> None:
     """
     Test IPv6 CIDR notation in whitelist/blacklist.
@@ -1046,7 +1061,9 @@ def test_ipv6_cidr_whitelist_blacklist(
         assert response.status_code == 403
 
 
-def test_mixed_ipv4_ipv6_handling(security_config_redis: SecurityConfig) -> None:
+def test_mixed_ipv4_ipv6_handling(
+    security_config_redis: SecurityConfig[SyncGuardRequest],
+) -> None:
     """
     Test handling of mixed IPv4 and IPv6 addresses in configuration.
     """
@@ -1085,7 +1102,9 @@ def test_mixed_ipv4_ipv6_handling(security_config_redis: SecurityConfig) -> None
         assert response.status_code == 403
 
 
-def test_emergency_mode_passive(security_config: SecurityConfig) -> None:
+def test_emergency_mode_passive(
+    security_config: SecurityConfig[SyncGuardRequest],
+) -> None:
     """Test emergency mode in passive mode."""
     app = Flask(__name__)
     security_config.emergency_mode = True
@@ -1104,7 +1123,7 @@ def test_emergency_mode_passive(security_config: SecurityConfig) -> None:
 
 
 def test_cors_preflight() -> None:
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         enable_cors=True,
@@ -1139,7 +1158,7 @@ def test_cors_disabled() -> None:
     )
 
     security_headers_manager.reset()
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         enable_cors=False,
@@ -1159,7 +1178,7 @@ def test_cors_disabled() -> None:
 
 
 def test_request_to_unregistered_route_does_not_crash() -> None:
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
     )
@@ -1174,7 +1193,7 @@ def test_request_to_unregistered_route_does_not_crash() -> None:
 
 def test_cloud_ip_refresh_no_providers() -> None:
     """Test that refresh_cloud_ip_ranges returns early when no providers configured."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         block_cloud_providers=None,
@@ -1199,7 +1218,7 @@ def test_init_without_config() -> None:
 
 def test_agent_initialization_import_error() -> None:
     """Test agent initialization when guard_agent package is not installed."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=True,
         agent_api_key="test-key",
@@ -1220,7 +1239,7 @@ def test_agent_initialization_success() -> None:
     """Test successful agent initialization with mocked guard_agent."""
     import sys
 
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=True,
         agent_api_key="test-key",
@@ -1254,7 +1273,7 @@ def test_agent_initialization_success() -> None:
 
 def test_agent_initialization_invalid_config() -> None:
     """Test agent initialization when to_agent_config returns None."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_agent=True,
         agent_api_key="test-key",
@@ -1270,7 +1289,7 @@ def test_agent_initialization_invalid_config() -> None:
 def test_passive_mode_rate_limiting() -> None:
     """Test that in passive mode, rate limit is logged but request is not blocked."""
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         passive_mode=True,
@@ -1292,7 +1311,7 @@ def test_passive_mode_rate_limiting() -> None:
 def test_reset_method() -> None:
     """Test that FlaskAPIGuard.reset() clears rate limits."""
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         rate_limit=2,
@@ -1324,7 +1343,7 @@ def test_request_without_client() -> None:
     blocked_countries, cloud-provider) cannot match without an address.
     Detection and rate limiting still apply.
     """
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
     )
@@ -1351,7 +1370,7 @@ def test_request_without_client() -> None:
 
 def test_request_without_client_unknown_identity_with_whitelist_is_blocked() -> None:
     """An unknown identity is still blocked when a whitelist is configured."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         whitelist=("127.0.0.1",),
@@ -1374,7 +1393,7 @@ def test_request_without_client_unknown_identity_with_whitelist_is_blocked() -> 
 
 def test_set_decorator_handler() -> None:
     """Test that setting decorator handler updates all components."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
     )
@@ -1402,7 +1421,7 @@ def test_set_decorator_handler() -> None:
 
 def test_init_app_factory_pattern() -> None:
     """Test FlaskAPIGuard() then guard.init_app(app, config=config) pattern."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
     )
@@ -1431,7 +1450,7 @@ def test_init_app_factory_pattern() -> None:
 
 def test_security_headers_disabled() -> None:
     """Test when security_headers has enabled=False."""
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         security_headers={"enabled": False},
@@ -1454,14 +1473,16 @@ def test_guard_response_factory_property() -> None:
     from flaskapi_guard.adapters import FlaskResponseFactory
 
     app = Flask(__name__)
-    config = SecurityConfig(enable_redis=False, enable_penetration_detection=False)
+    config = SecurityConfig[SyncGuardRequest](
+        enable_redis=False, enable_penetration_detection=False
+    )
     guard = FlaskAPIGuard(app, config=config)
     assert isinstance(guard.guard_response_factory, FlaskResponseFactory)
 
 
 def test_security_headers_not_configured() -> None:
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         security_headers=None,
@@ -1476,7 +1497,7 @@ def test_security_headers_explicitly_disabled() -> None:
 
     security_headers_manager.reset()
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         security_headers={"enabled": False},
@@ -1488,7 +1509,7 @@ def test_agent_init_with_mock_module() -> None:
     import sys
 
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         enable_agent=True,
@@ -1518,7 +1539,7 @@ def test_agent_init_import_blocked() -> None:
     import sys
 
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         enable_agent=True,
@@ -1554,7 +1575,7 @@ def test_agent_init_runtime_error() -> None:
     import sys
 
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         enable_agent=True,
@@ -1574,7 +1595,7 @@ def test_agent_init_runtime_error() -> None:
 
 def test_agent_init_config_returns_none() -> None:
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         enable_agent=True,
@@ -1610,7 +1631,7 @@ def test_adapter_url_replace_scheme_https() -> None:
 
 def test_refresh_cloud_ip_ranges_updates_timestamp() -> None:
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         block_cloud_providers=frozenset({"AWS"}),
@@ -1634,7 +1655,7 @@ def test_adapter_url_replace_scheme_no_protocol() -> None:
 
 def test_before_request_passthrough_response() -> None:
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         blacklist=("127.0.0.1",),
@@ -1664,7 +1685,7 @@ def test_before_request_bypass_response() -> None:
     from flaskapi_guard import SecurityDecorator
 
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         blacklist=("127.0.0.1",),
@@ -1696,7 +1717,7 @@ def test_before_request_bypass_passive_mode() -> None:
     from flaskapi_guard import SecurityDecorator
 
     app = Flask(__name__)
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         blacklist=("127.0.0.1",),

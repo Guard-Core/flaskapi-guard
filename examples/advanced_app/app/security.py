@@ -2,6 +2,7 @@ import logging
 import os
 
 from flask import Response
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import (
     FlaskGuardResponse,
@@ -34,7 +35,7 @@ def custom_response_modifier(resp: GuardResponse) -> GuardResponse:
     return resp
 
 
-security_config = SecurityConfig(
+security_config = SecurityConfig[SyncGuardRequest](
     whitelist=(),
     blacklist=("192.168.100.0/24",),
     trusted_proxies=("172.16.0.0/12", "10.0.0.0/8"),

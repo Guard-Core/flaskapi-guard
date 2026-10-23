@@ -12,6 +12,7 @@ from flask import (
     request,
 )
 from flask.typing import ResponseReturnValue
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import (
     BehaviorRule,
@@ -58,7 +59,7 @@ def custom_response_modifier(resp: GuardResponse) -> GuardResponse:
     return resp
 
 
-security_config = SecurityConfig(
+security_config = SecurityConfig[SyncGuardRequest](
     # Include the Docker client networks so host curls are not flagged
     whitelist=("127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"),
     blacklist=("192.168.100.0/24",),
