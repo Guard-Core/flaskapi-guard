@@ -50,6 +50,18 @@ How It Works
 
 ___
 
+Prerequisite: Do Not Pre-Resolve the Client with ProxyFix
+---------------------------------------------------------
+
+FlaskAPI Guard reads the connecting IP from `request.remote_addr`. Werkzeug's `ProxyFix` middleware sets `REMOTE_ADDR` from the `X-Forwarded-For` header before your Flask app (and so FlaskAPI Guard) runs: with `x_for` greater than 0 it takes the value `x_for` positions from the right of the header and assigns it to `REMOTE_ADDR`, and it leaves the real peer unchanged only when the header has fewer values than `x_for`.
+
+!!! warning "ProxyFix and `trusted_proxies` must not both resolve the client"
+    When `ProxyFix(app.wsgi_app, x_for=1)` wraps the app and the app server is reachable by clients directly, a client sends its own `X-Forwarded-For` and `ProxyFix` makes that value the connecting IP, so a client can pick a new identity on every request and rate limits and bans stop working. Choose one authority: either remove `x_for` from `ProxyFix` (`x_for=0`) and let `trusted_proxies` and `trusted_proxy_depth` resolve the client, or keep `ProxyFix` and make sure the app server only accepts connections from the proxies that append the header, with `x_for` equal to the number of those proxies. Do not configure both for the same hops.
+
+The same applies to the WSGI server in front of Flask. Gunicorn does not rewrite `REMOTE_ADDR` from `X-Forwarded-For` (its `forwarded_allow_ips` only governs the scheme and forwarder headers), so it needs no change.
+
+___
+
 Configuration Options
 ---------------------
 
