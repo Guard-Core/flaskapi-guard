@@ -165,6 +165,27 @@ class FlaskGuardRequest:
         return {"environ": self._request.environ}
 
 
+class StreamedBodyUnavailable(AttributeError):
+    pass
+
+
+class _TeedResponseBody:
+    def __init__(self, original: Any, source: Iterator[bytes], head: list[bytes]):
+        self._original = original
+        self._source = source
+        self.head = head
+
+    def __iter__(self) -> Iterator[bytes]:
+        while self.head:
+            yield self.head.pop(0)
+        yield from self._source
+
+    def close(self) -> None:
+        close = getattr(self._original, "close", None)
+        if close is not None:
+            close()
+
+
 class FlaskGuardResponse:
     def __init__(self, response: Response) -> None:
         self._response = response
@@ -179,13 +200,33 @@ class FlaskGuardResponse:
 
     @property
     def body(self) -> bytes | None:
+        if self._response.is_streamed:
+            raise StreamedBodyUnavailable(
+                "the response is streamed; read a bounded prefix with "
+                "read_body_prefix instead of buffering the whole body"
+            )
         return self._response.get_data()
 
     def read_body_prefix(self, max_bytes: int) -> bytes:
         if max_bytes <= 0:
             return b""
-        result: bytes = self._response.get_data()[:max_bytes]
-        return result
+        if not self._response.is_streamed:
+            result: bytes = self._response.get_data()[:max_bytes]
+            return result
+        return self._first_streamed_chunk()[:max_bytes]
+
+    def _first_streamed_chunk(self) -> bytes:
+        teed = self._response.response
+        if not isinstance(teed, _TeedResponseBody):
+            teed = _TeedResponseBody(teed, self._response.iter_encoded(), [])
+            self._response.response = teed
+            # the first non-empty chunk is the stopping point the streaming
+            # contract names, so an endless stream never stalls the scan
+            for chunk in teed._source:
+                teed.head.append(chunk)
+                if chunk:
+                    break
+        return b"".join(teed.head)
 
 
 class FlaskResponseFactory:
