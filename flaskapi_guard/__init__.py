@@ -1,17 +1,13 @@
+from importlib import import_module
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
+from typing import TYPE_CHECKING, Any
 
 from guard_core import SecurityConfig
+from guard_core._config_capabilities import register_adapter
 from guard_core.sync.decorators import RouteConfig, SecurityDecorator
 from guard_core.sync.handlers.behavior_handler import BehaviorRule, BehaviorTracker
-from guard_core.sync.handlers.cloud_handler import CloudManager, cloud_handler
 from guard_core.sync.handlers.ipban_handler import IPBanManager, ip_ban_manager
-from guard_core.sync.handlers.ipinfo_handler import IPInfoManager
-from guard_core.sync.handlers.ratelimit_handler import (
-    RateLimitManager,
-    rate_limit_handler,
-)
-from guard_core.sync.handlers.redis_handler import RedisManager, redis_handler
 from guard_core.sync.handlers.security_headers_handler import (
     SecurityHeadersManager,
     security_headers_manager,
@@ -28,6 +24,37 @@ from guard_core.sync.protocols.response_protocol import GuardResponse
 
 from flaskapi_guard.adapters import FlaskGuardRequest, FlaskGuardResponse
 from flaskapi_guard.extension import FlaskAPIGuard
+
+register_adapter("flaskapi-guard", "sync")
+
+if TYPE_CHECKING:
+    from guard_core.sync.handlers.cloud_handler import CloudManager, cloud_handler
+    from guard_core.sync.handlers.ipinfo_handler import IPInfoManager
+    from guard_core.sync.handlers.ratelimit_handler import (
+        RateLimitManager,
+        rate_limit_handler,
+    )
+    from guard_core.sync.handlers.redis_handler import RedisManager, redis_handler
+
+_LAZY_MODULE_BY_NAME: dict[str, str] = {
+    "CloudManager": "guard_core.sync.handlers.cloud_handler",
+    "cloud_handler": "guard_core.sync.handlers.cloud_handler",
+    "IPInfoManager": "guard_core.sync.handlers.ipinfo_handler",
+    "RateLimitManager": "guard_core.sync.handlers.ratelimit_handler",
+    "rate_limit_handler": "guard_core.sync.handlers.ratelimit_handler",
+    "RedisManager": "guard_core.sync.handlers.redis_handler",
+    "redis_handler": "guard_core.sync.handlers.redis_handler",
+}
+
+
+def __getattr__(name: str) -> Any:
+    module_name = _LAZY_MODULE_BY_NAME.get(name)
+    if module_name is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = getattr(import_module(module_name), name)
+    globals()[name] = value
+    return value
+
 
 try:
     __version__ = _pkg_version("flaskapi_guard")

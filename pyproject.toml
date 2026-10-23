@@ -36,10 +36,20 @@ Issues = "https://github.com/Guard-Core/flaskapi-guard/issues"
 Changelog = "https://github.com/Guard-Core/flaskapi-guard/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
+redis = [
+    "guard-core[redis]",
+]
+geo = [
+    "guard-core[geo]",
+]
+cloud = [
+    "guard-core[cloud]",
+]
 dev = [
     "bandit[toml]",
     "deptry",
     "guard-agent",
+    "guard-core[cloud,geo,redis]",
     "httpx",
     "matplotlib",
     "mkdocs",
