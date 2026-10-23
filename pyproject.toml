@@ -55,11 +55,13 @@ dev = [
     "mkdocs",
     "mkdocstrings",
     "mkdocstrings-python",
+    "mike",
     "mkdocs-material",
     "mypy",
     "pip-audit",
     "pre-commit",
     "pymarkdownlnt",
+    "yq",
     "pytest",
     "pytest-cov",
     "pytest-mock",
@@ -235,6 +237,10 @@ max_average = "A"
 exclude = ["tests/*", ".venv/*", "vulture_whitelist.py"]
 ignore = []
 
+[tool.uv]
+# mkdocstrings 1.0.6 is the newest release for Python 3.10 and fails with pymdown-extensions 12 ("Highlight.__init__() missing 1 required positional argument: 'md'"); with pymdown-extensions 11 the strict docs build passes
+constraint-dependencies = ["pymdown-extensions<12"]
+
 [tool.deptry]
 exclude = ["tests", ".venv", "vulture_whitelist.py", "examples", "docs", "build"]
 extend_exclude = ["conftest.py"]
@@ -248,11 +254,13 @@ per_rule_ignores = { "DEP002" = [
     "mkdocs",
     "mkdocstrings",
     "mkdocstrings-python",
+    "mike",
     "mkdocs-material",
     "mypy",
     "pip-audit",
     "pre-commit",
     "pymarkdownlnt",
+    "yq",
     "pytest",
     "pytest-cov",
     "pytest-mock",
