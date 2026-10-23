@@ -51,7 +51,13 @@ ban_ip
 Ban an IP address for a specified duration.
 
 ```python
-def ban_ip(ip: str, duration: int, reason: str = "threshold_exceeded") -> None
+def ban_ip(
+    ip: str,
+    duration: int,
+    reason: str = "threshold_exceeded",
+    *,
+    grouped: bool = False,
+) -> bool
 ```
 
 **Parameters**:
@@ -59,6 +65,11 @@ def ban_ip(ip: str, duration: int, reason: str = "threshold_exceeded") -> None
 - `ip`: The IP address to ban
 - `duration`: Ban duration in seconds
 - `reason`: Reason for the ban (default: "threshold_exceeded")
+- `grouped`: Ban `ip` as a group identity, such as the IPv6 prefix `2001:db8::/64`, instead of one exact address
+
+**Returns**:
+
+- `bool`: True if the ban was applied, False if it was refused
 
 **Example**:
 
@@ -95,12 +106,13 @@ unban_ip
 Remove a ban on an IP address.
 
 ```python
-def unban_ip(ip: str) -> None
+def unban_ip(ip: str, *, reason: str = "manual_unban") -> None
 ```
 
 **Parameters**:
 
 - `ip`: The IP address to unban
+- `reason`: The reason recorded with the unban
 
 **Example**:
 
