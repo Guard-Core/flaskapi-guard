@@ -175,6 +175,16 @@ class _TeedResponseBody:
         self._source = source
         self.head = head
 
+    def read_until(self, wanted: int) -> None:
+        received = sum(map(len, self.head))
+        if received >= wanted:
+            return
+        for chunk in self._source:
+            self.head.append(chunk)
+            received += len(chunk)
+            if received >= wanted:
+                return
+
     def __iter__(self) -> Iterator[bytes]:
         while self.head:
             yield self.head.pop(0)
@@ -187,8 +197,13 @@ class _TeedResponseBody:
 
 
 class FlaskGuardResponse:
+    body_is_materialized: bool
+
     def __init__(self, response: Response) -> None:
         self._response = response
+        # read here, before anything calls .data or get_data(): they buffer a
+        # generator body and flip is_streamed
+        self.body_is_materialized = not response.is_streamed
 
     @property
     def status_code(self) -> int:
@@ -213,20 +228,20 @@ class FlaskGuardResponse:
         if not self._response.is_streamed:
             result: bytes = self._response.get_data()[:max_bytes]
             return result
-        return self._first_streamed_chunk()[:max_bytes]
+        return self._streamed_prefix(max_bytes)
 
-    def _first_streamed_chunk(self) -> bytes:
+    def _streamed_prefix(self, max_bytes: int) -> bytes:
         teed = self._response.response
         if not isinstance(teed, _TeedResponseBody):
             teed = _TeedResponseBody(teed, self._response.iter_encoded(), [])
             self._response.response = teed
-            # the first non-empty chunk is the stopping point the streaming
-            # contract names, so an endless stream never stalls the scan
-            for chunk in teed._source:
-                teed.head.append(chunk)
-                if chunk:
-                    break
-        return b"".join(teed.head)
+        # a declared length within the cap is read to its end; any other stream
+        # stops at the first non-empty chunk, so an endless stream never stalls
+        declared = self._response.content_length
+        teed.read_until(
+            declared if declared is not None and declared <= max_bytes else 1
+        )
+        return b"".join(teed.head)[:max_bytes]
 
 
 class FlaskResponseFactory:

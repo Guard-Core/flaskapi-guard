@@ -267,4 +267,4 @@ def test_body_reading_modifier_on_a_256_mib_stream_adds_less_than_one_chunk() ->
         STREAM_CHUNKS * CHUNK,
         _chunk(0)[:4].hex(),
     )
-    assert seen == ["StreamedBodyUnavailable"] * 2
+    assert seen == ["ResponseBodyUnavailableError"] * 2
