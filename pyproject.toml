@@ -51,7 +51,7 @@ dev = [
     "guard-agent",
     "guard-core[cloud,geo,redis]",
     "httpx",
-    "matplotlib",
+    "matplotlib; python_full_version >= '3.11'",
     "mypy",
     "pip-audit",
     "pre-commit",
