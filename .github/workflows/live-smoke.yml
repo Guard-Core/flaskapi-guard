@@ -53,7 +53,7 @@ jobs:
         run: |
           rm -rf live_smoke_stack
           cp -r examples/simple_app live_smoke_stack
-          wheel=$(ls examples/live_smoke_wheels/flaskapi_guard-*.whl | head -n 1)
+          wheel=$(find examples/live_smoke_wheels -name "flaskapi_guard-*.whl" | head -n 1)
           cp "$wheel" live_smoke_stack/
           python3 - <<'EOF'
           import pathlib
@@ -81,7 +81,7 @@ jobs:
 
           # Wait for the app to finish initializing (engine redis + ipinfo setup)
           ready=""
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "$base/")" = "200" ]; then
               ready=1; break
             fi
