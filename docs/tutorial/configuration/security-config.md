@@ -116,8 +116,8 @@ Cloud Provider Settings
 |-------|------|---------|-------------|
 | `block_cloud_providers` | set[str] \| None | None | Cloud providers to block (valid: "AWS", "GCP", "Azure") |
 | `cloud_ip_refresh_interval` | int | 3600 | Interval in seconds between cloud IP range refreshes (60-86400) |
-| `ipinfo_token` | str \| None | None | IPInfo API token for geolocation (**deprecated** — use `geo_ip_handler` instead) |
-| `ipinfo_db_path` | Path \| None | Path("data/ipinfo/country_asn.mmdb") | Path to IPInfo database (**deprecated** — use `geo_ip_handler` instead) |
+| `ipinfo_token` | str \| None | None | IPInfo API token for geolocation (**deprecated** - use `geo_ip_handler` instead) |
+| `ipinfo_db_path` | Path \| None | Path("data/ipinfo/country_asn.mmdb") | Path to IPInfo database (**deprecated** - use `geo_ip_handler` instead) |
 
 Security Headers Settings
 ------------------------
