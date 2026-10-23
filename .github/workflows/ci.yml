@@ -12,6 +12,7 @@ on:
       - 'flaskapi_guard/**'
       - '.pre-commit-config.yaml'
       - 'pyproject.toml'
+      - 'uv.lock'
       - 'tests/**'
   pull_request:
     branches:
@@ -24,6 +25,7 @@ on:
       - 'flaskapi_guard/**'
       - '.pre-commit-config.yaml'
       - 'pyproject.toml'
+      - 'uv.lock'
       - 'tests/**'
   workflow_dispatch:
 
