@@ -206,7 +206,7 @@ test-3.13:
 # Serve docs
 .PHONY: serve-docs
 serve-docs:
-	@uv run mkdocs serve
+	@UV_PROJECT_ENVIRONMENT=.venv/docs uv run --python 3.14 --extra dev --group docs mkdocs serve
 	@find . | grep -E "(__pycache__|\\.pyc|\\.pyo|\\.pytest_cache|\\.ruff_cache|\\.mypy_cache)" | xargs rm -rf
 
 # Prune

@@ -52,11 +52,11 @@ jobs:
 
       - name: Install the flaskapi-guard dev environment
         run: |
-          uv sync --extra dev
+          uv sync --locked --extra dev
 
       - name: Force-install the guard-core@master wheel over the resolved one
         run: |
-          wheel=$(find wheels -name "guard_core-*.whl" | head -n 1)
+          wheel=$(find wheels -maxdepth 1 -name 'guard_core-*.whl' | head -n 1)
           uv pip install --python .venv/bin/python --no-deps --force-reinstall "$wheel"
 
       - name: Run the flaskapi-guard test suite against guard-core@master
