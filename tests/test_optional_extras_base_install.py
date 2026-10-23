@@ -11,6 +11,8 @@ from tests.redis_isolation import REDIS_URL
 PACKAGE = "flaskapi_guard"
 DISTRIBUTION = "flaskapi-guard"
 FOUR = ("redis", "maxminddb", "aiohttp", "requests")
+DOWNLOADER_MISSING = ("requests",)
+OTHER_DOWNLOADER_MISSING = ("aiohttp",)
 
 
 def _run_without(blocked: tuple[str, ...], body: str) -> Any:
@@ -41,7 +43,8 @@ FlaskAPIGuard(app, config=SecurityConfig(CONFIG_KWARGS))
 def root():
     return {"ok": True}
 status = app.test_client().get("/").status_code
-loaded = [m for m in ("redis", "maxminddb", "aiohttp", "requests") if sys.modules[m]]
+names = ("redis", "maxminddb", "aiohttp", "requests")
+loaded = [m for m in names if sys.modules.get(m)]
 print(json.dumps([status, loaded]))
 """
 
@@ -107,20 +110,46 @@ def test_each_extra_feature_is_refused_naming_guard_cores_and_the_adapters_extra
         }, label
 
 
-def test_a_sync_app_with_only_aiohttp_is_refused_for_cloud_blocking() -> None:
-    message = _run_without(
-        ("requests",),
-        f"""
-        import {PACKAGE}
-        from {PACKAGE} import SecurityConfig
-        try:
-            SecurityConfig(block_cloud_providers={{"AWS"}})
-        except ValueError as error:
-            print(json.dumps(str(error)))
-        """,
+def _refused_at_app_build(blocked: tuple[str, ...], config_kwargs: str) -> str:
+    early = "from guard_core import SecurityConfig as EarlyConfig\n"
+    early += "early_config = EarlyConfig(" + config_kwargs + ")\n"
+    script = (
+        "import json, sys, warnings\n"
+        "warnings.simplefilter('ignore')\n"
+        f"for name in {blocked!r}:\n"
+        "    sys.modules[name] = None\n"
+        + early
+        + textwrap.dedent(
+            SERVE.replace("SecurityConfig(CONFIG_KWARGS)", "early_config")
+        )
     )
-    assert "'requests'" in message
-    assert f"{DISTRIBUTION}[cloud]" in message
+    result = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, check=False
+    )
+    assert result.returncode != 0
+    assert "200" not in result.stdout
+    return result.stderr
+
+
+CLOUD_KWARGS = "block_cloud_providers={'AWS'}"
+GEO_KWARGS = "ipinfo_token='t', blocked_countries={'US'}"
+
+
+def test_a_config_built_before_the_adapter_import_is_still_refused_for_cloud() -> None:
+    stderr = _refused_at_app_build(DOWNLOADER_MISSING, CLOUD_KWARGS)
+    assert "DownloaderNotInstalledError" in stderr
+    assert f"{DISTRIBUTION}[cloud]" in stderr
+
+
+def test_a_config_built_before_the_adapter_import_is_still_refused_for_geo() -> None:
+    stderr = _refused_at_app_build(DOWNLOADER_MISSING, GEO_KWARGS)
+    assert "DownloaderNotInstalledError" in stderr
+    assert f"{DISTRIBUTION}[geo]" in stderr
+
+
+def test_the_other_trees_downloader_is_not_needed() -> None:
+    status, _ = _serve(OTHER_DOWNLOADER_MISSING, "block_cloud_providers={'AWS'}")
+    assert status == 200
 
 
 def test_the_lazy_reexports_resolve_to_the_engine_objects() -> None:

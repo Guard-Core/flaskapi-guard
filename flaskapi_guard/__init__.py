@@ -25,7 +25,7 @@ from guard_core.sync.protocols.response_protocol import GuardResponse
 from flaskapi_guard.adapters import FlaskGuardRequest, FlaskGuardResponse
 from flaskapi_guard.extension import FlaskAPIGuard
 
-register_adapter("flaskapi-guard", "sync")
+register_adapter("flaskapi-guard")
 
 if TYPE_CHECKING:
     from guard_core.sync.handlers.cloud_handler import CloudManager, cloud_handler
