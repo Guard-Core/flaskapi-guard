@@ -18,6 +18,7 @@ def rate_limiting_decorator_app(security_config: SecurityConfig) -> Flask:
     security_config.blacklist = ()
     security_config.blocked_countries = frozenset({})
     security_config.enable_penetration_detection = False
+    security_config.fail_on_misconfiguration = False
 
     decorator = SecurityDecorator(security_config)
 
@@ -149,3 +150,25 @@ def test_rate_limiting_decorators_unit(security_config: SecurityConfig) -> None:
     route_config2 = decorator.get_route_config(route_id2)
     assert route_config2 is not None
     assert route_config2.geo_rate_limits == limits
+
+
+def test_geo_rate_limit_without_a_geoip_database_refuses_to_start_by_default() -> None:
+    """A geo rate limit with no GeoIP database refuses to start."""
+    app = Flask(__name__)
+    app.config["TESTING"] = True
+    config = SecurityConfig(enable_redis=False, enable_penetration_detection=False)
+    decorator = SecurityDecorator(config)
+
+    @app.route("/geo-rate-limited")
+    @decorator.geo_rate_limit({"US": (100, 3600), "*": (50, 3600)})
+    def geo_rate_limited_endpoint() -> dict[str, str]:
+        return {"message": "Geo rate limited endpoint"}
+
+    guard = FlaskAPIGuard(app, config=config)
+    guard.set_decorator_handler(decorator)
+
+    with (
+        app.test_client() as client,
+        pytest.raises(ValueError, match="uses geo_rate_limit but no GeoIP database"),
+    ):
+        client.get("/geo-rate-limited")

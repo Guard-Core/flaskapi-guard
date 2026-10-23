@@ -9,7 +9,9 @@ from flaskapi_guard.adapters import FlaskGuardRequest
 
 
 def _app_and_extension(
-    limits: dict[str, tuple[int, int]], **login_options: Any
+    limits: dict[str, tuple[int, int]],
+    config_options: dict[str, Any] | None = None,
+    **login_options: Any,
 ) -> tuple[Flask, FlaskAPIGuard]:
     app = Flask(__name__)
     config = SecurityConfig(
@@ -18,6 +20,7 @@ def _app_and_extension(
         rate_limit=1000,
         endpoint_rate_limits=limits,
         passive_mode=False,
+        **(config_options or {}),
     )
     extension = FlaskAPIGuard(app, config=config)
 
@@ -36,8 +39,12 @@ def _app_and_extension(
     return app, extension
 
 
-def _app(limits: dict[str, tuple[int, int]], **login_options: Any) -> Flask:
-    return _app_and_extension(limits, **login_options)[0]
+def _app(
+    limits: dict[str, tuple[int, int]],
+    config_options: dict[str, Any] | None = None,
+    **login_options: Any,
+) -> Flask:
+    return _app_and_extension(limits, config_options, **login_options)[0]
 
 
 def _statuses(app: Flask, paths: list[str]) -> list[int]:
@@ -80,9 +87,14 @@ def test_login_and_login_slash_keys_are_both_enforced() -> None:
 
 
 def test_key_the_router_cannot_resolve_still_limits_through_the_fallback() -> None:
-    app = _app({"/login/.": (1, 60)})
+    app = _app({"/login/.": (1, 60)}, {"fail_on_misconfiguration": False})
 
     assert _statuses(app, ["/login", "/login"]) == [200, 429]
+
+
+def test_key_the_router_cannot_resolve_refuses_to_start_by_default() -> None:
+    with pytest.raises(ValueError, match="has a dot segment"):
+        _app({"/login/.": (1, 60)})
 
 
 def test_resolve_route_returns_each_handler_once_across_methods() -> None:

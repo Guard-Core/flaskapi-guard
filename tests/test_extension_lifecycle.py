@@ -113,7 +113,7 @@ def test_set_decorator_handler_skips_app_extension_when_entry_not_dict() -> None
 
 
 def test_redis_unavailable_at_first_request_returns_503_and_retries() -> None:
-    config = SecurityConfig(enable_penetration_detection=False)
+    config = SecurityConfig(enable_redis=True, enable_penetration_detection=False)
     app = Flask(__name__)
 
     @app.route("/")
@@ -142,3 +142,26 @@ def test_redis_unavailable_at_first_request_returns_503_and_retries() -> None:
             assert response.status_code == 200
             assert response.get_json() == {"message": "Hello World"}
             assert guard._initialized is True
+
+
+def test_redis_stays_off_by_default_so_the_first_request_never_connects() -> None:
+    config = SecurityConfig(enable_penetration_detection=False)
+    app = Flask(__name__)
+
+    @app.route("/")
+    def read_root() -> dict[str, str]:
+        return {"message": "Hello World"}
+
+    guard = FlaskAPIGuard(app, config=config)
+    calls = {"count": 0}
+
+    def counting_initialize(self: RedisManager) -> None:
+        calls["count"] += 1
+
+    with patch.object(RedisManager, "initialize", counting_initialize):
+        with app.test_client() as client:
+            response = client.get("/")
+
+    assert response.status_code == 200
+    assert guard._initialized is True
+    assert calls["count"] == 0
