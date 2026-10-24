@@ -168,7 +168,7 @@ guard = FlaskAPIGuard(app, config=config)
 
 ## Technology Stack
 
-- **Python**: 3.10, 3.11, 3.12, 3.13, 3.14
+- **Python**: 3.10, 3.11, 3.12, 3.13, 3.14, 3.15, 3.15
 - **Flask**: WSGI web framework
 - **guard-core**: Framework-agnostic security engine
 - **Pydantic**: Data validation
