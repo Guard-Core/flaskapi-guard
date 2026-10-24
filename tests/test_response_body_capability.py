@@ -20,6 +20,7 @@ from flask import Flask, Response, request, send_file
 from guard_core.sync.core.responses import reads_response_body
 from guard_core.sync.core.responses.context import ResponseContext
 from guard_core.sync.core.responses.factory import ErrorResponseFactory
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig
 from flaskapi_guard.adapters import FlaskGuardRequest, FlaskGuardResponse
@@ -281,7 +282,7 @@ def test_read_body_prefix_returns_what_a_short_declared_stream_produced() -> Non
     assert _drain(native) == b"ab"
 
 
-def _app(config: SecurityConfig, path: Path) -> Flask:
+def _app(config: SecurityConfig[SyncGuardRequest], path: Path) -> Flask:
     app = Flask(__name__)
     app.config["TESTING"] = True
 
@@ -330,7 +331,7 @@ def test_through_the_extension_the_client_gets_every_byte(
     route: str, readable: bool
 ) -> None:
     seen = _Seen()
-    config = SecurityConfig(
+    config = SecurityConfig[SyncGuardRequest](
         enable_redis=False,
         enable_penetration_detection=False,
         enable_rate_limiting=False,
