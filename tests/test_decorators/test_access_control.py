@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 from flask import Flask
-from guard_core.sync.handlers.cloud_handler import cloud_handler
+from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
@@ -15,6 +15,7 @@ def decorator_app(security_config: SecurityConfig[SyncGuardRequest]) -> Flask:
     app = Flask(__name__)
     app.config["TESTING"] = True
 
+    cloud_handler_for(security_config, bind=True)
     security_config.trusted_proxies = ("127.0.0.1",)
     security_config.enable_penetration_detection = False
     security_config.whitelist = ()
@@ -137,9 +138,11 @@ def test_country_access_control(
             assert response.status_code == expected_status, description
 
 
-def test_cloud_provider_blocking(decorator_app: Flask) -> None:
+def test_cloud_provider_blocking(
+    decorator_app: Flask, security_config: SecurityConfig[SyncGuardRequest]
+) -> None:
     """Test cloud provider blocking decorator."""
-    with patch.object(cloud_handler, "is_cloud_ip") as mock_cloud:
+    with patch.object(cloud_handler_for(security_config), "is_cloud_ip") as mock_cloud:
         mock_cloud.return_value = False
         with decorator_app.test_client() as client:
             response = client.get(
@@ -157,9 +160,11 @@ def test_cloud_provider_blocking(decorator_app: Flask) -> None:
             assert response.status_code == 403
 
 
-def test_block_all_clouds_default(decorator_app: Flask) -> None:
+def test_block_all_clouds_default(
+    decorator_app: Flask, security_config: SecurityConfig[SyncGuardRequest]
+) -> None:
     """Test block_clouds decorator with default behavior (blocks all providers)."""
-    with patch.object(cloud_handler, "is_cloud_ip") as mock_cloud:
+    with patch.object(cloud_handler_for(security_config), "is_cloud_ip") as mock_cloud:
         mock_cloud.return_value = False
         with decorator_app.test_client() as client:
             response = client.get(
