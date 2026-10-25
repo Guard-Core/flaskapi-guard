@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import Mock
 
 import pytest
@@ -158,11 +159,30 @@ def test_rate_limiting_decorators_unit(
 
 
 def test_geo_rate_limit_without_a_geoip_database_refuses_to_start_by_default() -> None:
-    """A geo rate limit with no GeoIP database refuses to start."""
+    """A geo rate limit with no geo source raises when the route is declared."""
     app = Flask(__name__)
-    app.config["TESTING"] = True
     config = SecurityConfig[SyncGuardRequest](
         enable_redis=False, enable_penetration_detection=False
+    )
+    decorator = SecurityDecorator(config)
+    FlaskAPIGuard(app, config=config).set_decorator_handler(decorator)
+
+    with pytest.raises(ValueError, match="no GeoIP database is configured"):
+
+        @app.route("/geo-rate-limited")
+        @decorator.geo_rate_limit({"US": (100, 3600), "*": (50, 3600)})
+        def geo_rate_limited_endpoint() -> dict[str, str]:
+            return {"message": "Geo rate limited endpoint"}
+
+
+def test_geo_rate_limit_without_a_geoip_database_starts_and_warns_once_when_false(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    app = Flask(__name__)
+    config = SecurityConfig[SyncGuardRequest](
+        enable_redis=False,
+        enable_penetration_detection=False,
+        fail_on_misconfiguration=False,
     )
     decorator = SecurityDecorator(config)
 
@@ -171,11 +191,62 @@ def test_geo_rate_limit_without_a_geoip_database_refuses_to_start_by_default() -
     def geo_rate_limited_endpoint() -> dict[str, str]:
         return {"message": "Geo rate limited endpoint"}
 
+    FlaskAPIGuard(app, config=config).set_decorator_handler(decorator)
+
+    with caplog.at_level(logging.WARNING, logger="guard_core"):
+        with app.test_client() as client:
+            assert client.get("/geo-rate-limited").status_code == 200
+            assert client.get("/geo-rate-limited").status_code == 200
+
+    assert caplog.text.count("no GeoIP database") == 1
+
+
+def test_a_country_rule_with_a_token_declares_and_serves_without_a_report(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    app = Flask(__name__)
+    config = SecurityConfig[SyncGuardRequest](
+        enable_redis=False,
+        enable_penetration_detection=False,
+        ipinfo_token="test-token",
+    )
+    decorator = SecurityDecorator(config)
+
+    @app.route("/blocked")
+    @decorator.block_countries(["CN"])
+    def blocked_endpoint() -> dict[str, str]:
+        return {"message": "blocked"}
+
     guard = FlaskAPIGuard(app, config=config)
     guard.set_decorator_handler(decorator)
 
-    with (
-        app.test_client() as client,
-        pytest.raises(ValueError, match="uses geo_rate_limit but no GeoIP database"),
-    ):
-        client.get("/geo-rate-limited")
+    with caplog.at_level(logging.WARNING, logger="guard_core"):
+        assert guard.handler_initializer is not None
+        guard.handler_initializer.report_route_misconfigurations()
+
+    assert "no GeoIP database" not in caplog.text
+
+
+def test_a_country_rule_with_a_token_and_no_downloader_refuses_to_declare(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("guard_core._geo_source._extra_installed", lambda name: False)
+    decorator = SecurityDecorator(
+        SecurityConfig[SyncGuardRequest](enable_redis=False, ipinfo_token="test-token")
+    )
+
+    with pytest.raises(ValueError, match="'maxminddb' and 'requests'"):
+        decorator.allow_countries(["US"])(lambda: None)
+
+
+def test_the_two_config_case_refuses_to_declare() -> None:
+    FlaskAPIGuard(
+        Flask(__name__),
+        config=SecurityConfig[SyncGuardRequest](
+            enable_redis=False, ipinfo_token="test-token"
+        ),
+    )
+    decorator = SecurityDecorator(SecurityConfig[SyncGuardRequest](enable_redis=False))
+
+    with pytest.raises(ValueError, match="no GeoIP database is configured"):
+        decorator.block_countries(["CN"])(lambda: None)
