@@ -3,10 +3,10 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 from flask.typing import ResponseReturnValue
+from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 
 from app.models import message_response, stats_response
 from app.security import guard
-from flaskapi_guard import cloud_handler
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,8 @@ def cloud_status() -> ResponseReturnValue:
     from app.security import security_config
 
     last_updated = {}
-    for provider, dt in cloud_handler.last_updated.items():
+    # `cloud_handler` is the default app's; this app's own manager:
+    for provider, dt in cloud_handler_for(security_config).last_updated.items():
         last_updated[provider] = dt.isoformat() if dt else None
     return jsonify(
         message_response(

@@ -74,10 +74,14 @@ Comprehensive Results
 The detection engine returns detailed information about threats:
 
 ```python
-from flaskapi_guard import sus_patterns_handler
+from guard_core.sync.handlers.suspatterns_handler import sus_patterns_manager_for
+
+# The module-level objects are the default app's. Take the ones of the app
+# you act on with the config that app was built with.
+patterns = sus_patterns_manager_for(config)
 
 # Direct detection with rich results
-result = sus_patterns_handler.detect(
+result = patterns.detect(
     content="SELECT * FROM users WHERE id=1 OR 1=1",
     ip_address="192.168.1.100",
     context="query_param",
@@ -100,7 +104,7 @@ Monitor and optimize detection performance:
 
 ```python
 # Get performance statistics
-stats = sus_patterns_handler.get_performance_stats()
+stats = patterns.get_performance_stats()
 print(f"Slow patterns: {stats['slow_patterns']}")
 print(f"Problematic patterns: {stats['problematic_patterns']}")
 ```
@@ -128,7 +132,11 @@ def submit_data():
 For more control, use the enhanced detection API:
 
 ```python
-from flaskapi_guard import sus_patterns_handler
+from guard_core.sync.handlers.suspatterns_handler import sus_patterns_manager_for
+
+# The module-level objects are the default app's. Take the ones of the app
+# you act on with the config that app was built with.
+patterns = sus_patterns_manager_for(config)
 from flask import request, jsonify
 import json
 
@@ -137,7 +145,7 @@ import json
 def secure_endpoint():
     data = request.get_json()
     # Check request body with enhanced detection
-    result = sus_patterns_handler.detect(
+    result = patterns.detect(
         content=json.dumps(data), ip_address=request.remote_addr, context="request_body"
     )
 
@@ -226,19 +234,23 @@ Pattern Management
 Add or remove custom patterns:
 
 ```python
-from flaskapi_guard import sus_patterns_handler
+from guard_core.sync.handlers.suspatterns_handler import sus_patterns_manager_for
+
+# The module-level objects are the default app's. Take the ones of the app
+# you act on with the config that app was built with.
+patterns = sus_patterns_manager_for(config)
 
 # Add custom pattern
-sus_patterns_handler.add_pattern(
+patterns.add_pattern(
     r"(?i)exec\s*\(\s*['\"].*['\"]\s*\)",  # Detect exec() calls
     custom=True,
 )
 
 # Remove pattern
-sus_patterns_handler.remove_pattern(r"(?i)exec\s*\(\s*['\"].*['\"]\s*\)", custom=True)
+patterns.remove_pattern(r"(?i)exec\s*\(\s*['\"].*['\"]\s*\)", custom=True)
 
 # Get all patterns
-patterns = sus_patterns_handler.get_all_patterns()
+all_patterns = patterns.get_all_patterns()
 ```
 
 Semantic Threshold Tuning
@@ -248,10 +260,10 @@ Adjust the semantic detection sensitivity:
 
 ```python
 # More strict (fewer false positives, might miss some attacks)
-sus_patterns_handler.configure_semantic_threshold(0.9)
+patterns.configure_semantic_threshold(0.9)
 
 # More lenient (catch more attacks, might have false positives)
-sus_patterns_handler.configure_semantic_threshold(0.5)
+patterns.configure_semantic_threshold(0.5)
 ```
 
 Component Status
@@ -260,7 +272,7 @@ Component Status
 Check which detection components are active:
 
 ```python
-status = sus_patterns_handler.get_component_status()
+status = patterns.get_component_status()
 # Returns: {
 #     "compiler": True,
 #     "preprocessor": True,

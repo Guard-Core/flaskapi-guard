@@ -199,16 +199,20 @@ The engine loads patterns from:
 ### Adding Custom Patterns
 
 ```python
-from flaskapi_guard import sus_patterns_handler
+from guard_core.sync.handlers.suspatterns_handler import sus_patterns_manager_for
+
+# The module-level objects are the default app's. Take the ones of the app
+# you act on with the config that app was built with.
+patterns = sus_patterns_manager_for(config)
 
 # Add a pattern
-sus_patterns_handler.add_pattern(r"(?i)malicious.*pattern", custom=True)
+patterns.add_pattern(r"(?i)malicious.*pattern", custom=True)
 
 # Remove a pattern
-sus_patterns_handler.remove_pattern(r"(?i)malicious.*pattern", custom=True)
+patterns.remove_pattern(r"(?i)malicious.*pattern", custom=True)
 
 # Clear all custom patterns
-sus_patterns_handler.clear_custom_patterns()
+patterns.clear_custom_patterns()
 ```
 
 ## Performance Considerations
