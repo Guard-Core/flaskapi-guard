@@ -11,10 +11,12 @@ from guard_core.models import SecurityConfig
 from guard_core.protocols.geo_ip_protocol import GeoIPHandler
 from guard_core.sync.decorators.base import BaseSecurityDecorator
 from guard_core.sync.detection_result import DetectionResult
-from guard_core.sync.handlers.cloud_handler import cloud_handler
+from guard_core.sync.handlers.cloud_handler import cloud_handler_for
+from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
 from guard_core.sync.handlers.ipinfo_handler import IPInfoManager
 from guard_core.sync.handlers.ratelimit_handler import rate_limit_handler
 from guard_core.sync.handlers.redis_handler import redis_handler
+from guard_core.sync.handlers.suspatterns_handler import sus_patterns_manager_for
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from redis.exceptions import RedisError
 
@@ -365,18 +367,19 @@ def test_cloud_ip_blocking() -> None:
         block_cloud_providers=frozenset({"AWS", "GCP", "Azure"}),
     )
 
+    cloud_handler_for(config, bind=True)
     FlaskAPIGuard(app, config=config)
 
     @app.route("/")
     def read_root() -> dict[str, str]:
         return {"message": "Hello World"}
 
-    with patch.object(cloud_handler, "is_cloud_ip", return_value=True):
+    with patch.object(cloud_handler_for(config), "is_cloud_ip", return_value=True):
         with app.test_client() as client:
             response = client.get("/", headers={"X-Forwarded-For": "13.59.255.255"})
             assert response.status_code == 403
 
-    with patch.object(cloud_handler, "is_cloud_ip", return_value=False):
+    with patch.object(cloud_handler_for(config), "is_cloud_ip", return_value=False):
         with app.test_client() as client:
             response = client.get("/", headers={"X-Forwarded-For": "8.8.8.8"})
             assert response.status_code == 200
@@ -470,15 +473,16 @@ def test_redis_initialization(
         patch(
             "guard_core.sync.handlers.redis_handler.RedisManager.initialize"
         ) as redis_init,
-        patch(
-            "guard_core.sync.handlers.cloud_handler.cloud_handler.initialize_redis"
+        patch.object(
+            cloud_handler_for(security_config_redis, bind=True), "initialize_redis"
         ) as cloud_init,
-        patch(
-            "guard_core.sync.handlers.ipban_handler.ip_ban_manager.initialize_redis"
+        patch.object(
+            ip_ban_manager_for(security_config_redis, bind=True), "initialize_redis"
         ) as ipban_init,
         patch.object(IPInfoManager, "initialize_redis") as ipinfo_init,
-        patch(
-            "guard_core.sync.handlers.suspatterns_handler.sus_patterns_handler.initialize_redis"
+        patch.object(
+            sus_patterns_manager_for(security_config_redis, bind=True),
+            "initialize_redis",
         ) as sus_init,
         patch(
             "guard_core.sync.handlers.ratelimit_handler.RateLimitManager.initialize_redis"
@@ -510,15 +514,16 @@ def test_redis_initialization_without_ipinfo_and_cloud(
         patch(
             "guard_core.sync.handlers.redis_handler.RedisManager.initialize"
         ) as redis_init,
-        patch(
-            "guard_core.sync.handlers.cloud_handler.cloud_handler.initialize_redis"
+        patch.object(
+            cloud_handler_for(security_config_redis, bind=True), "initialize_redis"
         ) as cloud_init,
-        patch(
-            "guard_core.sync.handlers.ipban_handler.ip_ban_manager.initialize_redis"
+        patch.object(
+            ip_ban_manager_for(security_config_redis, bind=True), "initialize_redis"
         ) as ipban_init,
         patch.object(IPInfoManager, "initialize_redis") as ipinfo_init,
-        patch(
-            "guard_core.sync.handlers.suspatterns_handler.sus_patterns_handler.initialize_redis"
+        patch.object(
+            sus_patterns_manager_for(security_config_redis, bind=True),
+            "initialize_redis",
         ) as sus_init,
         patch(
             "guard_core.sync.handlers.ratelimit_handler.RateLimitManager.initialize_redis"
@@ -1638,7 +1643,7 @@ def test_refresh_cloud_ip_ranges_updates_timestamp() -> None:
     )
     guard = FlaskAPIGuard(app, config=config)
     guard.last_cloud_ip_refresh = 0
-    with patch.object(cloud_handler, "refresh"):
+    with patch.object(cloud_handler_for(config), "refresh_async"):
         guard.refresh_cloud_ip_ranges()
     assert guard.last_cloud_ip_refresh > 0
 

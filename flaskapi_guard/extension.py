@@ -18,7 +18,7 @@ from guard_core.sync.core.responses import ErrorResponseFactory, ResponseContext
 from guard_core.sync.core.routing import RouteConfigResolver, RoutingContext
 from guard_core.sync.core.validation import RequestValidator, ValidationContext
 from guard_core.sync.decorators.base import BaseSecurityDecorator, RouteConfig
-from guard_core.sync.handlers.cloud_handler import cloud_handler
+from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 from guard_core.sync.handlers.cors_handler import (
     CorsHandler,
     CorsPreflightResponse,
@@ -711,7 +711,7 @@ class FlaskAPIGuard:
         providers: set[str] = {
             str(provider) for provider in self.config.block_cloud_providers
         }
-        cloud_handler.refresh_async(providers)
+        cloud_handler_for(self.config).refresh_async(providers)
         self.last_cloud_ip_refresh = int(time.time())
 
     def create_error_response(
