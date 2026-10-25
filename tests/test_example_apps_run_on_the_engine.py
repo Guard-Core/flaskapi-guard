@@ -48,7 +48,8 @@ def _load_example(name: str, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     monkeypatch.setenv("REDIS_URL", REDIS_URL)
     monkeypatch.setenv("REDIS_PREFIX", REDIS_PREFIX)
     monkeypatch.setattr(
-        "guard_core.handlers.ipinfo_handler.IPInfoManager", _CountryStubGeoIPHandler
+        "guard_core.sync.handlers.ipinfo_handler.IPInfoManager",
+        _CountryStubGeoIPHandler,
     )
     if name == "simple_app":
         spec = importlib.util.spec_from_file_location(

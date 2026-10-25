@@ -90,9 +90,7 @@ class FlaskAPIGuard:
 
     def _init_geo_ip_handler(self) -> None:
         assert self.config is not None
-        self.geo_ip_handler = None
-        if self.config.whitelist_countries or self.config.blocked_countries:
-            self.geo_ip_handler = self.config.geo_ip_handler
+        self.geo_ip_handler = self.config.geo_ip_handler
 
     def _init_redis_handler(self) -> None:
         assert self.config is not None
@@ -144,6 +142,7 @@ class FlaskAPIGuard:
             guard_decorator=self.guard_decorator,
             adapter="flaskapi-guard",
         )
+        self.geo_ip_handler = self.handler_initializer.geo_ip_handler
 
     def _init_route_resolver(self) -> None:
         assert self.config is not None
@@ -257,6 +256,7 @@ class FlaskAPIGuard:
         assert self.handler_initializer is not None
         self.handler_initializer.guard_decorator = self.guard_decorator
         self.handler_initializer.initialize_redis_handlers()
+        self.geo_ip_handler = self.handler_initializer.geo_ip_handler
         self.handler_initializer.initialize_agent_integrations()
 
         if self.handler_initializer.composite_handler is not None:

@@ -3,6 +3,13 @@ Changelog
 
 ___
 
+Unreleased
+----------
+
+- **Fixed** - **Country rules need no global rule.** The extension keeps `config.geo_ip_handler` whenever one is configured and reads back the handler the sync engine runs with: a handler built from `ipinfo_token` is now the synchronous `IPInfoManager`, so `blocked_countries` blocks (it never did, the engine called the async manager without awaiting it), and a route-level `block_countries`, `allow_countries` or `geo_rate_limit` works without a global country rule. The examples no longer carry a placeholder `blocked_countries`.
+
+___
+
 v4.4.0 (2026-10-15)
 -------------------
 

@@ -68,7 +68,6 @@ security_config = SecurityConfig[SyncGuardRequest](
     trust_x_forwarded_proto=True,
     # The country routes below need a GeoIP source: set IPINFO_TOKEN in the environment
     ipinfo_token=os.environ.get("IPINFO_TOKEN"),
-    blocked_countries=frozenset({"XX"}),
     block_cloud_providers=frozenset({"AWS", "GCP", "Azure"}),
     blocked_user_agents=["badbot", "evil-crawler", "sqlmap"],
     enable_rate_limiting=True,
