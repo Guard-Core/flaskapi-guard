@@ -19,7 +19,9 @@ def _reset_singleton() -> Generator[None, None, None]:
 
 
 def _config(
-    tmp_path: Path, blocked_countries: frozenset[str] = frozenset()
+    tmp_path: Path,
+    blocked_countries: frozenset[str] = frozenset(),
+    lazy_init: bool = False,
 ) -> SecurityConfig[SyncGuardRequest]:
     db_path = tmp_path / "geo.mmdb"
     db_path.write_bytes(country_database_bytes("CN"))
@@ -28,7 +30,7 @@ def _config(
         enable_penetration_detection=False,
         ipinfo_token="tok",
         ipinfo_db_path=db_path,
-        lazy_init=False,
+        lazy_init=lazy_init,
         trusted_proxies=("127.0.0.1",),
         blocked_countries=blocked_countries,
     )
@@ -73,3 +75,21 @@ def test_route_block_countries_blocks_without_a_global_country_rule(
 
     assert _status(app, "/blocked") == 403
     assert _status(app, "/open") == 200
+
+
+def test_route_block_countries_blocks_under_the_default_lazy_init(
+    tmp_path: Path,
+) -> None:
+    app = Flask(__name__)
+    config = _config(tmp_path, lazy_init=True)
+    decorator = SecurityDecorator(config)
+
+    @app.route("/blocked")
+    @decorator.block_countries(["CN"])
+    def blocked() -> dict[str, str]:
+        return {"ok": "yes"}
+
+    guard = FlaskAPIGuard(app, config=config)
+    guard.set_decorator_handler(decorator)
+
+    assert _status(app, "/blocked") == 403
