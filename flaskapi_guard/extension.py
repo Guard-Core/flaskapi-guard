@@ -595,6 +595,7 @@ class FlaskAPIGuard:
     def _before_request(self) -> Response | None:
         early = self._guard_request_phase()
         # After the phase: the app's scope exists once its lazy init has run.
+        assert self.config is not None
         g.guard_app_scope_token = hold_app_scope(self.config)
         if early is None:
             g.guard_response_pass = True
