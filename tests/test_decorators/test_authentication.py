@@ -227,7 +227,7 @@ def test_api_key_route_refuses_a_missing_key_and_answers_a_present_one(
         forwarded = {"X-Forwarded-For": "127.0.0.1"}
 
         missing = getattr(client, method)(endpoint, headers=forwarded)
-        assert missing.status_code in (400, 401)
+        assert missing.status_code == 401
         assert handler_message not in missing.data.decode()
 
         present = getattr(client, method)(
