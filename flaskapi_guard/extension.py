@@ -8,6 +8,7 @@ from flask import Flask, Response, g
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
+from guard_core.sync._utils.app_scope import hold_app_scope, release_app_scope
 from guard_core.sync.core.behavioral import BehavioralContext, BehavioralProcessor
 from guard_core.sync.core.bypass import BypassContext, BypassHandler
 from guard_core.sync.core.checks.pipeline import SecurityCheckPipeline
@@ -251,6 +252,7 @@ class FlaskAPIGuard:
 
         app.before_request(self._before_request)
         app.after_request(self._after_request)
+        app.teardown_request(self._teardown_request)
 
     def _initialize_handlers(self) -> None:
         assert self.handler_initializer is not None
@@ -592,9 +594,14 @@ class FlaskAPIGuard:
 
     def _before_request(self) -> Response | None:
         early = self._guard_request_phase()
+        # After the phase: the app's scope exists once its lazy init has run.
+        g.guard_app_scope_token = hold_app_scope(self.config)
         if early is None:
             g.guard_response_pass = True
         return early
+
+    def _teardown_request(self, error: BaseException | None = None) -> None:
+        release_app_scope(g.pop("guard_app_scope_token", None))
 
     def _after_request(self, response: Response) -> Response:
         from flask import request
