@@ -422,7 +422,7 @@ class FlaskAPIGuard:
     def agent_stats(self) -> dict[str, Any]:
         if self.agent_handler is None:
             return {"enabled": False}
-        handler_stats = cast(Any, self.agent_handler).get_stats()
+        handler_stats = self.agent_handler.get_stats()
         return {"enabled": True, **handler_stats}
 
     def _execute_security_pipeline(
