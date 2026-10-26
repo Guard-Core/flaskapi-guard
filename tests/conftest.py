@@ -8,7 +8,11 @@ from flask import Flask
 from guard_core.models import SecurityConfig
 from guard_core.protocols.geo_ip_protocol import GeoIPHandler
 from guard_core.sync.handlers.cloud_handler import cloud_handler
-from guard_core.sync.handlers.ipban_handler import reset_global_state
+from guard_core.sync.handlers.ipban_handler import (
+    IPBanManager,
+    ip_ban_manager,
+    reset_global_state,
+)
 from guard_core.sync.handlers.ipinfo_handler import IPInfoManager
 from guard_core.sync.handlers.ratelimit_handler import rate_limit_handler
 from guard_core.sync.handlers.suspatterns_handler import sus_patterns_handler
@@ -53,6 +57,8 @@ def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
 
 @pytest.fixture(autouse=True)
 def reset_state() -> Generator[None, None, None]:
+    # A second app's initialize_redis makes its own manager the class singleton
+    IPBanManager._instance = ip_ban_manager
     reset_global_state()
 
     original_patterns = sus_patterns_handler.patterns.copy()
