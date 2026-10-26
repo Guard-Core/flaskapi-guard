@@ -707,6 +707,8 @@ class FlaskAPIGuard:
     ) -> bool:
         from guard_core.sync.core.checks.helpers import check_user_agent_allowed
 
+        if self.config is None:
+            raise ValueError("SecurityConfig must be provided")
         result: bool = check_user_agent_allowed(user_agent, route_config, self.config)
         return result
 

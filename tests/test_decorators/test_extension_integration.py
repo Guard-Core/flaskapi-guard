@@ -195,6 +195,13 @@ def test_check_user_agent_allowed() -> None:
         mock_global.assert_called_once()
 
 
+def test_check_user_agent_allowed_without_a_config_is_refused() -> None:
+    guard = FlaskAPIGuard()
+
+    with pytest.raises(ValueError, match="SecurityConfig must be provided"):
+        guard._check_user_agent_allowed("somebot", None)
+
+
 def test_time_window_error_handling() -> None:
     """Test time window check error handling."""
     app = Flask(__name__)

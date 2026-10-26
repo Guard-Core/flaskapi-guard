@@ -799,6 +799,7 @@ def test_lua_script_execution(
     guard._ensure_initialized()
     handler = guard.rate_limit_handler
     assert handler is not None
+    assert handler.redis_handler is not None
 
     try:
         assert handler.rate_limit_script_sha is not None
@@ -829,6 +830,7 @@ def test_fallback_to_pipeline(
     guard._ensure_initialized()
     handler = guard.rate_limit_handler
     assert handler is not None
+    assert handler.redis_handler is not None
 
     try:
         handler.rate_limit_script_sha = None
@@ -1231,13 +1233,23 @@ def test_agent_initialization_import_error() -> None:
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    with patch.object(
-        SecurityConfig,
-        "to_agent_config",
-        return_value=MagicMock(),
+    with (
+        patch.dict("sys.modules", {"guard_agent": None}),
+        patch.object(
+            SecurityConfig,
+            "to_agent_config",
+            return_value=MagicMock(),
+        ),
+        patch("flaskapi_guard.extension.setup_custom_logging") as setup_logging,
     ):
         guard = FlaskAPIGuard(app, config=config)
-        assert guard.agent_handler is None
+
+    assert guard.agent_handler is None
+    setup_logging.return_value.warning.assert_any_call(
+        "Agent enabled but guard_agent package not installed. "
+        "Install with: uv add guard-agent"
+    )
+    setup_logging.return_value.error.assert_not_called()
 
 
 def test_agent_initialization_success() -> None:
