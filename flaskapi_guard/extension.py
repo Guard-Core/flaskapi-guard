@@ -1,6 +1,8 @@
 import logging
 import os
+import threading
 import time
+from collections import OrderedDict
 from collections.abc import Mapping
 from typing import Any, cast
 
@@ -9,6 +11,7 @@ from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync._utils.app_scope import hold_app_scope, release_app_scope
+from guard_core.sync._utils.sampling import observe_sampled_key
 from guard_core.sync.core.behavioral import BehavioralContext, BehavioralProcessor
 from guard_core.sync.core.bypass import BypassContext, BypassHandler
 from guard_core.sync.core.checks.pipeline import SecurityCheckPipeline
@@ -44,6 +47,22 @@ from flaskapi_guard.adapters import (
 
 def _path_params(values: Mapping[str, Any]) -> tuple[tuple[str, str], ...]:
     return tuple(sorted((name, str(value)) for name, value in values.items()))
+
+
+_INIT_OUTAGE_SAMPLE_WINDOW_SECONDS = 60
+_INIT_OUTAGE_SAMPLE_KEY = "redis_unavailable_during_initialization"
+_init_outage_lock = threading.Lock()
+_init_outage_samples: OrderedDict[str, float] = OrderedDict()
+
+
+def _sample_init_outage_line() -> bool:
+    return observe_sampled_key(
+        _init_outage_samples,
+        _init_outage_lock,
+        _INIT_OUTAGE_SAMPLE_KEY,
+        window=_INIT_OUTAGE_SAMPLE_WINDOW_SECONDS,
+        max_tracked=1,
+    )
 
 
 class FlaskAPIGuard:
@@ -279,6 +298,15 @@ class FlaskAPIGuard:
         try:
             self._initialize_handlers()
         except GuardRedisError as e:
+            if self.config is not None and self.config.passive_mode:
+                if _sample_init_outage_line():
+                    self.logger.error(
+                        "Redis unavailable during initialization: %s "
+                        "(passive_mode=True, request passed through unguarded)",
+                        e,
+                    )
+                g.guard_init_passthrough = True
+                return None
             self.logger.error("Redis unavailable during initialization: %s", e)
             return self._redis_unavailable_response()
         self._initialized = True
@@ -545,6 +573,8 @@ class FlaskAPIGuard:
         assert self.route_resolver is not None
 
         init_failure = self._ensure_initialized()
+        if g.get("guard_init_passthrough", False):
+            return None
         request_headers = dict(request.headers)
         if init_failure is not None:
             return self._attach_cors_to_blocked(init_failure, request_headers)
@@ -597,7 +627,7 @@ class FlaskAPIGuard:
         # After the phase: the app's scope exists once its lazy init has run.
         assert self.config is not None
         g.guard_app_scope_token = hold_app_scope(self.config)
-        if early is None:
+        if early is None and not g.get("guard_init_passthrough", False):
             g.guard_response_pass = True
         return early
 
