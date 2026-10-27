@@ -1507,6 +1507,24 @@ def test_security_headers_not_configured() -> None:
     FlaskAPIGuard(app, config=config)
 
 
+def test_security_headers_hsts_none_configures_manager() -> None:
+    from guard_core.sync.handlers.security_headers_handler import (
+        security_headers_manager,
+    )
+
+    security_headers_manager.reset()
+    security_headers_manager.enabled = False
+    app = Flask(__name__)
+    config = SecurityConfig[SyncGuardRequest](
+        enable_redis=False,
+        enable_penetration_detection=False,
+        security_headers={"enabled": True, "hsts": None},
+    )
+    FlaskAPIGuard(app, config=config)
+    assert security_headers_manager.enabled is True
+    assert security_headers_manager.hsts_config is None
+
+
 def test_security_headers_explicitly_disabled() -> None:
     from guard_core.sync.handlers.security_headers_handler import (
         security_headers_manager,
