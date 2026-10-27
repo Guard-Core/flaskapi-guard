@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from guard_core import SecurityConfig
 from guard_core._config_capabilities import register_adapter
+from guard_core.sync import endpoint_rate_limit_key_problems
 from guard_core.sync.decorators import RouteConfig, SecurityDecorator
 from guard_core.sync.handlers.behavior_handler import BehaviorRule, BehaviorTracker
 from guard_core.sync.handlers.ipban_handler import IPBanManager, ip_ban_manager
@@ -83,6 +84,7 @@ __all__ = [
     "security_headers_manager",
     "SecurityHeadersManager",
     "sus_patterns_handler",
+    "endpoint_rate_limit_key_problems",
     "GeoIPHandler",
     "RedisHandlerProtocol",
     "GuardRequest",
