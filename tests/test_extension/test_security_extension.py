@@ -1267,7 +1267,7 @@ def test_agent_initialization_success() -> None:
     mock_agent_instance = MagicMock()
     mock_guard_agent_fn = MagicMock(return_value=mock_agent_instance)
     mock_agent_module = MagicMock()
-    mock_agent_module.guard_agent = mock_guard_agent_fn
+    mock_agent_module.SyncGuardAgentHandler = mock_guard_agent_fn
 
     mock_agent_config = MagicMock()
 
@@ -1534,7 +1534,7 @@ def test_agent_init_with_mock_module() -> None:
     )
     mock_agent = MagicMock()
     mock_module = MagicMock()
-    mock_module.guard_agent = MagicMock(return_value=mock_agent)
+    mock_module.SyncGuardAgentHandler = MagicMock(return_value=mock_agent)
     mock_config = MagicMock()
 
     with (
@@ -1599,7 +1599,9 @@ def test_agent_init_runtime_error() -> None:
         agent_api_key="test-key-long-enough-for-validation",
     )
     mock_module = MagicMock()
-    mock_module.guard_agent = MagicMock(side_effect=RuntimeError("init failed"))
+    mock_module.SyncGuardAgentHandler = MagicMock(
+        side_effect=RuntimeError("init failed")
+    )
     mock_config = MagicMock()
 
     with (

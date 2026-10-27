@@ -1,7 +1,7 @@
 from importlib import import_module
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from guard_core import SecurityConfig
 from guard_core._config_capabilities import register_adapter
@@ -47,7 +47,7 @@ _LAZY_MODULE_BY_NAME: dict[str, str] = {
 }
 
 
-def __getattr__(name: str) -> Any:
+def __getattr__(name: str) -> object:
     module_name = _LAZY_MODULE_BY_NAME.get(name)
     if module_name is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

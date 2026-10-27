@@ -2,9 +2,16 @@ from unittest.mock import MagicMock
 
 from flask import Flask
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.agent_protocol import JsonValue
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard
+
+
+def _section(stats: dict[str, JsonValue], name: str) -> dict[str, JsonValue]:
+    section = stats[name]
+    assert isinstance(section, dict)
+    return section
 
 
 def test_agent_stats_returns_disabled_when_agent_handler_unset() -> None:
@@ -48,7 +55,7 @@ def test_agent_stats_reflects_live_drop_counter_increments() -> None:
     guard.agent_handler = fake_handler
 
     first = guard.agent_stats
-    assert first["buffer_stats"]["events_dropped"] == 0
+    assert _section(first, "buffer_stats")["events_dropped"] == 0
 
     fake_handler.get_stats.return_value = {
         "buffer_stats": {"events_dropped": 7, "metrics_dropped": 3},
@@ -56,7 +63,7 @@ def test_agent_stats_reflects_live_drop_counter_increments() -> None:
     }
 
     second = guard.agent_stats
-    assert second["buffer_stats"]["events_dropped"] == 7
-    assert second["buffer_stats"]["metrics_dropped"] == 3
-    assert second["transport_stats"]["circuit_breaker_state"] == "OPEN"
+    assert _section(second, "buffer_stats")["events_dropped"] == 7
+    assert _section(second, "buffer_stats")["metrics_dropped"] == 3
+    assert _section(second, "transport_stats")["circuit_breaker_state"] == "OPEN"
     assert fake_handler.get_stats.call_count == 2

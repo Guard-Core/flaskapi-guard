@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 from flask import Flask
 from guard_core.models import SecurityConfig
+from guard_core.sync.protocols.agent_protocol import JsonValue
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard
@@ -12,7 +13,7 @@ from flaskapi_guard import FlaskAPIGuard
 
 class _StatsAgentStub:
     def __init__(self) -> None:
-        self.stats: dict[str, object] = {"buffer_stats": {"events_dropped": 3}}
+        self.stats: dict[str, JsonValue] = {"buffer_stats": {"events_dropped": 3}}
 
     def start(self) -> None: ...
 
@@ -35,8 +36,12 @@ class _StatsAgentStub:
     def health_check(self) -> bool:
         return True
 
-    def get_stats(self) -> dict[str, object]:
+    def get_stats(self) -> dict[str, JsonValue]:
         return self.stats
+
+
+def _handler_of(guard: FlaskAPIGuard) -> object:
+    return guard.agent_handler
 
 
 def test_agent_stats_answers_after_the_composite_handler_is_swapped_in(
@@ -44,7 +49,9 @@ def test_agent_stats_answers_after_the_composite_handler_is_swapped_in(
 ) -> None:
     stub = _StatsAgentStub()
     monkeypatch.setitem(
-        sys.modules, "guard_agent", SimpleNamespace(guard_agent=lambda _cfg: stub)
+        sys.modules,
+        "guard_agent",
+        SimpleNamespace(SyncGuardAgentHandler=lambda _cfg: stub),
     )
     config = SecurityConfig[SyncGuardRequest](
         enable_agent=True, agent_api_key="x", enable_redis=False
@@ -55,7 +62,7 @@ def test_agent_stats_answers_after_the_composite_handler_is_swapped_in(
 
     guard._initialize_handlers()
 
-    assert guard.agent_handler is not stub
+    assert _handler_of(guard) is not stub
     stats = guard.agent_stats
     assert stats["enabled"] is True
     assert stats["buffer_stats"] == {"events_dropped": 3}

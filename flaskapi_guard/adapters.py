@@ -1,10 +1,12 @@
 import io
-from collections.abc import Iterator, Mapping, MutableMapping
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from typing import Any, cast
+from typing import IO, Protocol, TypeGuard, runtime_checkable
 
-from flask import Response
+from flask import Request, Response
+from flask.ctx import _AppCtxGlobals
 from guard_core.exceptions import BodyReadStalledError
+from guard_core.protocols.response_protocol import GuardResponse, GuardResponseHeaders
 
 _READ_CHUNK_BYTES = 65536
 _SERVER_SOCKET_KEYS = ("werkzeug.socket", "gunicorn.socket")
@@ -20,25 +22,41 @@ def _caused_by_timeout(error: BaseException | None) -> bool:
     return False
 
 
+@runtime_checkable
+class _TimeoutSocket(Protocol):
+    def gettimeout(self) -> float | None: ...
+
+    def settimeout(self, value: float | None, /) -> None: ...
+
+
+def _is_lookup_table(value: object) -> TypeGuard[Mapping[str, str]]:
+    # Werkzeug Headers answer every Mapping call the engine makes but do not
+    # subclass Mapping (they iterate (name, value) pairs), so isinstance cannot see it
+    return all(
+        callable(getattr(value, name, None))
+        for name in ("__getitem__", "__contains__", "get", "keys", "items")
+    )
+
+
 class _ReplayStream:
-    def __init__(self, prefix: bytes, rest: Any) -> None:
+    def __init__(self, prefix: bytes, rest: IO[bytes]) -> None:
         self._prefix = io.BytesIO(prefix)
         self._rest = rest
 
     def read(self, size: int = -1) -> bytes:
         head = self._prefix.read(size)
         if size is None or size < 0:
-            return head + cast(bytes, self._rest.read())
+            return head + self._rest.read()
         if len(head) == size:
             return head
-        return head + cast(bytes, self._rest.read(size - len(head)))
+        return head + self._rest.read(size - len(head))
 
     def readline(self, size: int = -1) -> bytes:
         head = self._prefix.readline(size)
         if head.endswith(b"\n") or (size is not None and 0 <= size <= len(head)):
             return head
         remaining = -1 if size is None or size < 0 else size - len(head)
-        return head + cast(bytes, self._rest.readline(remaining))
+        return head + self._rest.readline(remaining)
 
     def readlines(self) -> list[bytes]:
         return list(self)
@@ -50,12 +68,12 @@ class _ReplayStream:
 
 @contextmanager
 def _idle_socket_timeout(
-    environ: Mapping[str, Any], idle_timeout: float
+    environ: Mapping[str, object], idle_timeout: float
 ) -> Iterator[None]:
     server_socket = next(
         (environ[key] for key in _SERVER_SOCKET_KEYS if key in environ), None
     )
-    if server_socket is None:
+    if not isinstance(server_socket, _TimeoutSocket):
         yield
         return
     previous = server_socket.gettimeout()
@@ -67,7 +85,7 @@ def _idle_socket_timeout(
 
 
 class FlaskGuardRequest:
-    def __init__(self, request: Any) -> None:
+    def __init__(self, request: Request) -> None:
         self._request = request
 
     @property
@@ -105,13 +123,14 @@ class FlaskGuardRequest:
 
     @property
     def headers(self) -> Mapping[str, str]:
-        result: Mapping[str, str] = self._request.headers
-        return result
+        headers = self._request.headers
+        if not _is_lookup_table(headers):
+            raise TypeError("the request headers are not a key lookup table")
+        return headers
 
     @property
     def query_params(self) -> Mapping[str, str]:
-        result: Mapping[str, str] = self._request.args
-        return result
+        return self._request.args
 
     def body(self) -> bytes:
         result: bytes = self._request.get_data()
@@ -127,8 +146,8 @@ class FlaskGuardRequest:
         if max_bytes <= 0:
             return b""
         cached = getattr(self._request, "_cached_data", None)
-        if cached is not None:
-            return cast(bytes, cached[:max_bytes])
+        if isinstance(cached, bytes):
+            return cached[:max_bytes]
         stream = self._request.stream
         chunks: list[bytes] = []
         received = 0
@@ -149,19 +168,19 @@ class FlaskGuardRequest:
             self._restore_consumed_prefix(prefix, stream)
         return prefix
 
-    def _restore_consumed_prefix(self, prefix: bytes, stream: Any) -> None:
+    def _restore_consumed_prefix(self, prefix: bytes, stream: IO[bytes]) -> None:
         environ = self._request.environ
         environ["wsgi.input"] = _ReplayStream(prefix, environ["wsgi.input"])
         self._request.__dict__["stream"] = _ReplayStream(prefix, stream)
 
     @property
-    def state(self) -> Any:
+    def state(self) -> _AppCtxGlobals:
         from flask import g
 
         return g
 
     @property
-    def scope(self) -> dict[str, Any]:
+    def scope(self) -> dict[str, object]:
         return {"environ": self._request.environ}
 
 
@@ -170,7 +189,7 @@ class StreamedBodyUnavailable(AttributeError):
 
 
 class _TeedResponseBody:
-    def __init__(self, original: Any, source: Iterator[bytes], head: list[bytes]):
+    def __init__(self, original: object, source: Iterator[bytes], head: list[bytes]):
         self._original = original
         self._source = source
         self.head = head
@@ -210,8 +229,8 @@ class FlaskGuardResponse:
         return self._response.status_code
 
     @property
-    def headers(self) -> MutableMapping[str, str]:
-        return cast(MutableMapping[str, str], self._response.headers)
+    def headers(self) -> GuardResponseHeaders:
+        return self._response.headers
 
     @property
     def body(self) -> bytes | None:
@@ -255,10 +274,20 @@ class FlaskResponseFactory:
     ) -> FlaskGuardResponse:
         from flask import redirect
 
-        return FlaskGuardResponse(cast(Response, redirect(url, code=status_code)))
+        redirected = redirect(url, code=status_code)
+        if isinstance(redirected, Response):
+            return FlaskGuardResponse(redirected)
+        # flask.redirect returns Werkzeug's own Response outside an app context
+        return FlaskGuardResponse(
+            Response(
+                redirected.response,
+                status=redirected.status_code,
+                headers=redirected.headers,
+            )
+        )
 
 
-def unwrap_response(guard_response: Any) -> Response:
+def unwrap_response(guard_response: GuardResponse) -> Response:
     if isinstance(guard_response, FlaskGuardResponse):
         return guard_response._response
     return Response(

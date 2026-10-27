@@ -53,7 +53,7 @@ def _client_after_redis_died(**overrides: Any) -> FlaskClient:
     client = app.test_client()
     assert client.get("/open").status_code == 200
     assert guard.redis_handler is not None
-    guard.redis_handler._redis = _DeadRedis()
+    guard.redis_handler.__dict__["_redis"] = _DeadRedis()
     return client
 
 

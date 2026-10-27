@@ -4,11 +4,13 @@ import threading
 import time
 from collections import OrderedDict
 from collections.abc import Mapping
-from typing import Any, cast
+from typing import TypeGuard
 
-from flask import Flask, Response, g
+from flask import Flask, Request, Response, g
+from flask.sansio.blueprints import Blueprint
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
+from guard_core.protocols.geo_ip_protocol import GeoIPHandler
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync._utils.app_scope import hold_app_scope, release_app_scope
 from guard_core.sync._utils.sampling import observe_sampled_key
@@ -30,7 +32,13 @@ from guard_core.sync.handlers.cors_handler import (
 )
 from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 from guard_core.sync.handlers.security_headers_handler import security_headers_manager
+from guard_core.sync.protocols.agent_protocol import (
+    JsonValue,
+    SyncAgentHandlerProtocol,
+)
+from guard_core.sync.protocols.geo_ip_protocol import SyncGeoIPHandler
 from guard_core.sync.protocols.middleware_protocol import SyncGuardMiddlewareProtocol
+from guard_core.sync.protocols.redis_protocol import SyncRedisHandlerProtocol
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from guard_core.sync.utils import extract_client_ip, setup_custom_logging
 from werkzeug.exceptions import HTTPException
@@ -45,7 +53,21 @@ from flaskapi_guard.adapters import (
 )
 
 
-def _path_params(values: Mapping[str, Any]) -> tuple[tuple[str, str], ...]:
+def _config_and_logger_resolved(
+    guard: "FlaskAPIGuard",
+) -> TypeGuard[SyncGuardMiddlewareProtocol]:
+    # the middleware protocol wants a config and a logger, the extension holds
+    # them as None until init_app resolves them: that is the only mismatch
+    return guard.config is not None and guard.logger is not None
+
+
+def _is_sync_agent_handler(handler: object) -> TypeGuard[SyncAgentHandlerProtocol]:
+    # guard-agent annotates SyncGuardAgentHandler.initialize_redis with the async
+    # redis protocol, so mypy cannot see the structural match the runtime check proves
+    return isinstance(handler, SyncAgentHandlerProtocol)
+
+
+def _path_params(values: Mapping[str, object]) -> tuple[tuple[str, str], ...]:
     return tuple(sorted((name, str(value)) for name, value in values.items()))
 
 
@@ -79,9 +101,9 @@ class FlaskAPIGuard:
         self.last_cleanup: float = 0
         self.rate_limit_handler: RateLimitManager | None = None
         self.guard_decorator: BaseSecurityDecorator | None = None
-        self.geo_ip_handler: Any = None
-        self.redis_handler: Any = None
-        self.agent_handler: Any = None
+        self.geo_ip_handler: GeoIPHandler | SyncGeoIPHandler | None = None
+        self.redis_handler: SyncRedisHandlerProtocol | None = None
+        self.agent_handler: SyncAgentHandlerProtocol | None = None
         self.security_pipeline: SecurityCheckPipeline | None = None
         self.event_bus: SecurityEventBus | None = None
         self.metrics_collector: MetricsCollector | None = None
@@ -136,9 +158,12 @@ class FlaskAPIGuard:
             return
 
         try:
-            from guard_agent import guard_agent
+            from guard_agent import SyncGuardAgentHandler
 
-            self.agent_handler = guard_agent(agent_config)
+            handler = SyncGuardAgentHandler(agent_config)
+            if not _is_sync_agent_handler(handler):
+                raise TypeError("SyncGuardAgentHandler is not a sync agent handler")
+            self.agent_handler = handler
             self.logger.info("Guard Agent initialized successfully")
         except ImportError:
             self.logger.warning(
@@ -334,7 +359,9 @@ class FlaskAPIGuard:
             UserAgentCheck,
         )
 
-        middleware = cast(SyncGuardMiddlewareProtocol, self)
+        middleware = self
+        if not _config_and_logger_resolved(middleware):
+            raise ValueError("SecurityConfig and logger must be resolved first")
         checks = [
             RouteConfigCheck(middleware),
             EmergencyModeCheck(middleware),
@@ -419,7 +446,7 @@ class FlaskAPIGuard:
         return self._guard_response_factory
 
     @property
-    def agent_stats(self) -> dict[str, Any]:
+    def agent_stats(self) -> dict[str, JsonValue]:
         if self.agent_handler is None:
             return {"enabled": False}
         handler_stats = self.agent_handler.get_stats()
@@ -476,11 +503,11 @@ class FlaskAPIGuard:
 
     def resolve_route(
         self, path: str
-    ) -> tuple[tuple[Any, tuple[tuple[str, str], ...]], ...]:
+    ) -> tuple[tuple[object, tuple[tuple[str, str], ...]], ...]:
         from flask import current_app
 
         url_adapter = current_app.url_map.bind("")
-        identities: dict[tuple[Any, tuple[tuple[str, str], ...]], None] = {}
+        identities: dict[tuple[object, tuple[tuple[str, str], ...]], None] = {}
         for method in url_adapter.allowed_methods(path):
             endpoint, args = url_adapter.match(path, method=method)
             identities[
@@ -488,7 +515,7 @@ class FlaskAPIGuard:
             ] = None
         return tuple(identities)
 
-    def _endpoint_and_args(self, path: str) -> tuple[str, Mapping[str, Any]] | None:
+    def _endpoint_and_args(self, path: str) -> tuple[str, Mapping[str, object]] | None:
         from flask import current_app, has_request_context, request
 
         if has_request_context() and request.endpoint and request.path == path:
@@ -507,7 +534,7 @@ class FlaskAPIGuard:
             return False
         endpoint, args = matched
         if endpoint == "static":
-            owner: Any = current_app
+            owner: Flask | Blueprint | None = current_app
         elif endpoint.endswith(".static"):
             owner = current_app.blueprints.get(endpoint.removesuffix(".static"))
         else:
@@ -550,7 +577,7 @@ class FlaskAPIGuard:
         preflight = self._cors_handler.build_preflight_response(request_headers)
         return self._build_flask_preflight_response(preflight)
 
-    def _call_view(self, _guard_request: Any) -> FlaskGuardResponse:
+    def _call_view(self, _guard_request: object) -> FlaskGuardResponse:
         from flask import current_app, request
 
         assert request.endpoint is not None
@@ -713,7 +740,7 @@ class FlaskAPIGuard:
         return result
 
     def _process_decorator_usage_rules(
-        self, request: Any, client_ip: str, route_config: RouteConfig
+        self, request: Request, client_ip: str, route_config: RouteConfig
     ) -> Response | None:
         assert self.behavioral_processor is not None
         guard_request = FlaskGuardRequest(request)
@@ -724,7 +751,7 @@ class FlaskAPIGuard:
 
     def _process_decorator_return_rules(
         self,
-        request: Any,
+        request: Request,
         response: Response,
         client_ip: str,
         route_config: RouteConfig,
@@ -736,7 +763,7 @@ class FlaskAPIGuard:
             guard_request, guard_response, client_ip, route_config
         )
 
-    def _get_endpoint_id(self, request: Any) -> str:
+    def _get_endpoint_id(self, request: Request) -> str:
         assert self.behavioral_processor is not None
         guard_request = FlaskGuardRequest(request)
         result: str = self.behavioral_processor.get_endpoint_id(guard_request)
