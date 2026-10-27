@@ -52,6 +52,17 @@ def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
 
 
 @pytest.fixture(autouse=True)
+def no_cloud_range_downloads(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The cloud refresh threads that apps start would otherwise download the
+    # provider range files for real, in daemon threads that outlive the test
+    # and allocate inside the tracemalloc window of the stream-peak tests.
+    monkeypatch.setattr(
+        "guard_core.sync.handlers.cloud_handler._fetch_provider_ranges",
+        lambda provider: (set(), {}),
+    )
+
+
+@pytest.fixture(autouse=True)
 def reset_state() -> Generator[None, None, None]:
     reset_global_state()
 
