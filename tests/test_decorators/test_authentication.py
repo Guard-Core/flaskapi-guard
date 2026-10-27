@@ -392,8 +392,11 @@ def test_authentication_decorators_unit(
     assert route_config6.required_headers["X-Other"] == "required"
 
 
-def test_authentication_failures_blocked(auth_decorator_app: Flask) -> None:
+def test_authentication_failures_blocked(
+    auth_decorator_app: Flask, security_config: SecurityConfig[SyncGuardRequest]
+) -> None:
     """Test that authentication failures are properly blocked and logged."""
+    security_config.ban_on_hostile_signals = False
     with auth_decorator_app.test_client() as client:
         response = client.get("/auth-default", headers={"X-Forwarded-For": "8.8.8.8"})
         assert response.status_code == 401
@@ -422,6 +425,26 @@ def test_authentication_failures_blocked(auth_decorator_app: Flask) -> None:
         )
         assert response.status_code == 401
         assert "Authentication required" in response.data.decode()
+
+
+def test_authentication_failures_reach_the_ban_by_default(
+    auth_decorator_app: Flask,
+) -> None:
+    """Repeated failed authentication bans the IP (D-06 items 1-2)."""
+    with auth_decorator_app.test_client() as client:
+        statuses = [
+            client.get(
+                "/auth-default", headers={"X-Forwarded-For": "8.8.8.8", **extra}
+            ).status_code
+            for extra in (
+                {},
+                {"Authorization": "Invalid token-format"},
+                {"Authorization": "Invalid token-format"},
+                {"Authorization": "Invalid token-format"},
+            )
+        ]
+
+    assert statuses == [401, 401, 401, 403]
 
 
 def test_auth_passive_mode(security_config: SecurityConfig[SyncGuardRequest]) -> None:
