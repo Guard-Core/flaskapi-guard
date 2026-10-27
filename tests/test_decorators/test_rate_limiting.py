@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 from flask import Flask
+from guard_core.sync.decorators.base import get_route_id
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
@@ -66,7 +67,7 @@ def test_rate_limiting_decorators_applied(
 
     guard_ext = rate_limiting_decorator_app.extensions["flaskapi_guard"]
     decorator = guard_ext["guard_decorator"]
-    route_id = view_func._guard_route_id
+    route_id = get_route_id(view_func)
     route_config = decorator.get_route_config(route_id)
 
     assert route_config is not None, f"{description} should have route config"
@@ -90,7 +91,7 @@ def test_geo_rate_limit_decorator_applied(
 
     guard_ext = rate_limiting_decorator_app.extensions["flaskapi_guard"]
     decorator = guard_ext["guard_decorator"]
-    route_id = view_func._guard_route_id
+    route_id = get_route_id(view_func)
     route_config = decorator.get_route_config(route_id)
 
     assert route_config is not None, "geo_rate_limit should have route config"
@@ -138,7 +139,7 @@ def test_rate_limiting_decorators_unit(
     rate_limit_decorator = decorator.rate_limit(requests=5, window=120)
     decorated_func = rate_limit_decorator(mock_func)
 
-    route_id = decorated_func._guard_route_id
+    route_id = get_route_id(decorated_func)
     route_config = decorator.get_route_config(route_id)
     assert route_config is not None
     assert route_config.rate_limit == 5
@@ -152,7 +153,7 @@ def test_rate_limiting_decorators_unit(
     geo_rate_limit_decorator = decorator.geo_rate_limit(limits)
     decorated_func2 = geo_rate_limit_decorator(mock_func2)
 
-    route_id2 = decorated_func2._guard_route_id
+    route_id2 = get_route_id(decorated_func2)
     route_config2 = decorator.get_route_config(route_id2)
     assert route_config2 is not None
     assert route_config2.geo_rate_limits == limits

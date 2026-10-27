@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from flask import Flask
+from guard_core.sync.decorators.base import get_route_id
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
@@ -104,7 +105,7 @@ def test_suspicious_detection_enabled(advanced_decorator_app: Flask) -> None:
 
             guard_ext = advanced_decorator_app.extensions["flaskapi_guard"]
             decorator = guard_ext["guard_decorator"]
-            route_id = view_func._guard_route_id
+            route_id = get_route_id(view_func)
             route_config = decorator.get_route_config(route_id)
 
             assert route_config is not None
@@ -119,7 +120,7 @@ def test_suspicious_detection_disabled(advanced_decorator_app: Flask) -> None:
 
             guard_ext = advanced_decorator_app.extensions["flaskapi_guard"]
             decorator = guard_ext["guard_decorator"]
-            route_id = view_func._guard_route_id
+            route_id = get_route_id(view_func)
             route_config = decorator.get_route_config(route_id)
 
             assert route_config is not None
@@ -175,7 +176,7 @@ def test_honeypot_detection_configuration(
 
     guard_ext = advanced_decorator_app.extensions["flaskapi_guard"]
     decorator = guard_ext["guard_decorator"]
-    route_id = view_func._guard_route_id
+    route_id = get_route_id(view_func)
     route_config = decorator.get_route_config(route_id)
 
     assert route_config is not None
@@ -239,7 +240,7 @@ def test_honeypot_form_detection(
     honeypot_decorator = decorator.honeypot_detection(["bot_trap"])
     decorated_func = honeypot_decorator(mock_func)
 
-    route_id = decorated_func._guard_route_id
+    route_id = get_route_id(decorated_func)
     route_config = decorator.get_route_config(route_id)
     assert route_config is not None
     validator = route_config.custom_validators[0]
@@ -271,7 +272,7 @@ def test_honeypot_json_exception(
     honeypot_decorator = decorator.honeypot_detection(["spam_check"])
     decorated_func = honeypot_decorator(mock_func)
 
-    route_id = decorated_func._guard_route_id
+    route_id = get_route_id(decorated_func)
     route_config = decorator.get_route_config(route_id)
     assert route_config is not None
     validator = route_config.custom_validators[0]
@@ -299,7 +300,7 @@ def test_honeypot_json_detection(
     honeypot_decorator = decorator.honeypot_detection(["spam_check"])
     decorated_func = honeypot_decorator(mock_func)
 
-    route_id = decorated_func._guard_route_id
+    route_id = get_route_id(decorated_func)
     route_config = decorator.get_route_config(route_id)
     assert route_config is not None
     validator = route_config.custom_validators[0]
