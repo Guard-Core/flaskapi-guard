@@ -1,11 +1,12 @@
 import io
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from typing import IO, Protocol, TypeGuard, runtime_checkable
+from typing import IO, Protocol
 
 from flask import Request, Response
 from flask.ctx import _AppCtxGlobals
 from guard_core.exceptions import BodyReadStalledError
+from guard_core.protocols.request_protocol import GuardRequestHeaders
 from guard_core.protocols.response_protocol import GuardResponse, GuardResponseHeaders
 
 _READ_CHUNK_BYTES = 65536
@@ -22,20 +23,10 @@ def _caused_by_timeout(error: BaseException | None) -> bool:
     return False
 
 
-@runtime_checkable
 class _TimeoutSocket(Protocol):
     def gettimeout(self) -> float | None: ...
 
     def settimeout(self, value: float | None, /) -> None: ...
-
-
-def _is_lookup_table(value: object) -> TypeGuard[Mapping[str, str]]:
-    # Werkzeug Headers answer every Mapping call the engine makes but do not
-    # subclass Mapping (they iterate (name, value) pairs), so isinstance cannot see it
-    return all(
-        callable(getattr(value, name, None))
-        for name in ("__getitem__", "__contains__", "get", "keys", "items")
-    )
 
 
 class _ReplayStream:
@@ -68,12 +59,12 @@ class _ReplayStream:
 
 @contextmanager
 def _idle_socket_timeout(
-    environ: Mapping[str, object], idle_timeout: float
+    environ: Mapping[str, _TimeoutSocket], idle_timeout: float
 ) -> Iterator[None]:
     server_socket = next(
         (environ[key] for key in _SERVER_SOCKET_KEYS if key in environ), None
     )
-    if not isinstance(server_socket, _TimeoutSocket):
+    if server_socket is None:
         yield
         return
     previous = server_socket.gettimeout()
@@ -122,11 +113,8 @@ class FlaskGuardRequest:
         return result
 
     @property
-    def headers(self) -> Mapping[str, str]:
-        headers = self._request.headers
-        if not _is_lookup_table(headers):
-            raise TypeError("the request headers are not a key lookup table")
-        return headers
+    def headers(self) -> GuardRequestHeaders:
+        return self._request.headers
 
     @property
     def query_params(self) -> Mapping[str, str]:

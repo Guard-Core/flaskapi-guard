@@ -10,7 +10,6 @@ from flask import Flask, Request, Response, g
 from flask.sansio.blueprints import Blueprint
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
-from guard_core.protocols.geo_ip_protocol import GeoIPHandler
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync._utils.app_scope import hold_app_scope, release_app_scope
 from guard_core.sync._utils.sampling import observe_sampled_key
@@ -61,12 +60,6 @@ def _config_and_logger_resolved(
     return guard.config is not None and guard.logger is not None
 
 
-def _is_sync_agent_handler(handler: object) -> TypeGuard[SyncAgentHandlerProtocol]:
-    # guard-agent annotates SyncGuardAgentHandler.initialize_redis with the async
-    # redis protocol, so mypy cannot see the structural match the runtime check proves
-    return isinstance(handler, SyncAgentHandlerProtocol)
-
-
 def _path_params(values: Mapping[str, object]) -> tuple[tuple[str, str], ...]:
     return tuple(sorted((name, str(value)) for name, value in values.items()))
 
@@ -101,7 +94,7 @@ class FlaskAPIGuard:
         self.last_cleanup: float = 0
         self.rate_limit_handler: RateLimitManager | None = None
         self.guard_decorator: BaseSecurityDecorator | None = None
-        self.geo_ip_handler: GeoIPHandler | SyncGeoIPHandler | None = None
+        self.geo_ip_handler: SyncGeoIPHandler | None = None
         self.redis_handler: SyncRedisHandlerProtocol | None = None
         self.agent_handler: SyncAgentHandlerProtocol | None = None
         self.security_pipeline: SecurityCheckPipeline | None = None
@@ -132,7 +125,11 @@ class FlaskAPIGuard:
 
     def _init_geo_ip_handler(self) -> None:
         assert self.config is not None
-        self.geo_ip_handler = self.config.geo_ip_handler
+        configured = self.config.geo_ip_handler
+        # the config field also admits the async handler type; this adapter is sync
+        self.geo_ip_handler = (
+            configured if isinstance(configured, SyncGeoIPHandler) else None
+        )
 
     def _init_redis_handler(self) -> None:
         assert self.config is not None
@@ -160,10 +157,7 @@ class FlaskAPIGuard:
         try:
             from guard_agent import SyncGuardAgentHandler
 
-            handler = SyncGuardAgentHandler(agent_config)
-            if not _is_sync_agent_handler(handler):
-                raise TypeError("SyncGuardAgentHandler is not a sync agent handler")
-            self.agent_handler = handler
+            self.agent_handler = SyncGuardAgentHandler(agent_config)
             self.logger.info("Guard Agent initialized successfully")
         except ImportError:
             self.logger.warning(
