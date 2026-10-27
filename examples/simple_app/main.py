@@ -591,7 +591,8 @@ def headers_frame_test() -> ResponseReturnValue:
 
 @headers_bp.route("/hsts-info")
 def headers_hsts_info() -> ResponseReturnValue:
-    hsts_config = (security_config.security_headers or {}).get("hsts", {})
+    hsts = (security_config.security_headers or {}).get("hsts")
+    hsts_config = hsts if isinstance(hsts, dict) else {}
     return jsonify(
         {
             "message": "HSTS configuration",

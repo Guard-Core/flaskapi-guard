@@ -105,3 +105,41 @@ def test_example_country_block_route_blocks_the_blocked_country_only(
     blocked = _status(module, "GET", "/access/country-block", BLOCKED_COUNTRY_IP)
     allowed = _status(module, "GET", "/access/country-block", ALLOWED_COUNTRY_IP)
     assert (blocked, allowed) == (403, 200)
+
+
+_HSTS_DEFAULTS = {"max_age": 31536000, "include_subdomains": True, "preload": False}
+
+
+def _hsts_details(module: ModuleType) -> dict[str, object]:
+    client: FlaskClient = module.app.test_client()
+    response = client.get(
+        "/headers/hsts-info", environ_base={"REMOTE_ADDR": ALLOWED_COUNTRY_IP}
+    )
+    assert response.status_code == 200
+    details: dict[str, object] = response.get_json()["details"]
+    return details
+
+
+def test_simple_example_hsts_info_reports_the_configured_hsts_block(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_example("simple_app", monkeypatch)
+    block = {"max_age": 63072000, "include_subdomains": False, "preload": True}
+    monkeypatch.setitem(module.security_config.security_headers, "hsts", block)
+    assert _hsts_details(module) == block
+
+
+def test_simple_example_hsts_info_answers_the_defaults_without_an_hsts_block(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_example("simple_app", monkeypatch)
+    monkeypatch.delitem(module.security_config.security_headers, "hsts")
+    assert _hsts_details(module) == _HSTS_DEFAULTS
+
+
+def test_simple_example_hsts_info_answers_the_defaults_for_a_none_hsts_block(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_example("simple_app", monkeypatch)
+    monkeypatch.setitem(module.security_config.security_headers, "hsts", None)
+    assert _hsts_details(module) == _HSTS_DEFAULTS

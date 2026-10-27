@@ -132,6 +132,18 @@ def test_prefix_read_closes_the_original_stream() -> None:
     assert closed == [True]
 
 
+def test_prefix_read_of_a_source_without_close_closes_cleanly() -> None:
+    class Source:
+        def __iter__(self) -> Iterator[bytes]:
+            yield b"abc"
+            yield b"def"
+
+    response = Response(Source())
+    assert FlaskGuardResponse(response).read_body_prefix(2) == b"ab"
+    assert b"".join(response.iter_encoded()) == b"abcdef"
+    response.close()
+
+
 def test_prefix_read_stops_at_the_first_non_empty_chunk_of_an_endless_stream() -> None:
     def endless() -> Iterator[bytes]:
         yield b""
