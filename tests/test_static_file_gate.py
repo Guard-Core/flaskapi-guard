@@ -79,8 +79,8 @@ def test_a_ts_or_map_file_is_clean_only_when_the_static_mount_has_it(
 ) -> None:
     app = _static_app(_tree(tmp_path))
 
-    with app.test_client() as client:
-        assert client.get(path).status_code == status
+    with app.test_client() as client, client.get(path) as response:
+        assert response.status_code == status
 
 
 def _matches_issued_by_the_guard(
@@ -97,8 +97,11 @@ def _matches_issued_by_the_guard(
         return original(self, server_name, *args, **kwargs)
 
     monkeypatch.setattr(Map, "bind", counting)
-    with app.test_client() as client:
-        status = client.open(path, method=method).status_code
+    with (
+        app.test_client() as client,
+        client.open(path, method=method) as response,
+    ):
+        status = response.status_code
     return status, len(binds)
 
 
@@ -194,8 +197,8 @@ def test_the_static_mount_benign_corpus_is_clean_when_the_files_exist(
     )
     _guard(app)
 
-    with app.test_client() as client:
-        assert client.get(f"/media/{name}").status_code == 200
+    with app.test_client() as client, client.get(f"/media/{name}") as response:
+        assert response.status_code == 200
 
 
 @pytest.mark.parametrize("name", STATIC_MOUNT_CORPUS)
