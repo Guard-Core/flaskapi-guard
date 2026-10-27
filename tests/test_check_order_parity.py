@@ -5,6 +5,7 @@ from guard_core.sync.handlers.ratelimit_handler import _managers, _managers_lock
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig, SecurityDecorator
+from flaskapi_guard.extension import _config_and_logger_resolved
 
 BANNED_IP = "10.0.0.99"
 OTHER_IP = "10.0.0.7"
@@ -70,7 +71,9 @@ def test_a_request_over_the_rate_limit_that_fails_authentication_gets_429() -> N
 
 def test_the_pipeline_keeps_the_engine_default_order_and_cors_preflight() -> None:
     _, guard = _guarded_app()
-    engine_order = [cls(guard).check_name for cls in DEFAULT_CHECK_CLASSES]
+    middleware = guard
+    assert _config_and_logger_resolved(middleware)
+    engine_order = [cls(middleware).check_name for cls in DEFAULT_CHECK_CLASSES]
 
     assert guard.security_pipeline is not None
     names = guard.security_pipeline.get_check_names()
