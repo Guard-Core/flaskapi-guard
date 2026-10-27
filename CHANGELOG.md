@@ -10,6 +10,8 @@ Unreleased
 
 - **Fixed** - **Country rules need no global rule.** The extension keeps `config.geo_ip_handler` whenever one is configured and reads back the handler the sync engine runs with: a handler built from `ipinfo_token` is now the synchronous `IPInfoManager`, so `blocked_countries` blocks (it never did, the engine called the async manager without awaiting it), and a route-level `block_countries`, `allow_countries` or `geo_rate_limit` works without a global country rule. The examples no longer carry a placeholder `blocked_countries`.
 
+- **Fixed** - **The extension runs the engine's check order.** It builds its pipeline with the engine's `build_default_pipeline` instead of a list of its own, so the order is the engine's and a later engine change reaches it. IP security, cloud, user agent and rate limiting now run before `required_headers`, `authentication`, `referrer`, `custom_validators` and `time_window`: a banned IP that also lacks a required header gets the ban answer, and a request over the rate limit that also fails authentication gets `429`. The `cors_preflight` check now runs in the engine's position, between `user_agent` and `rate_limit`. The startup log line is unchanged in form, and the pipeline holds only the checks the config and the registered routes need, as in fastapi-guard.
+
 ___
 
 v4.4.0 (2026-10-15)

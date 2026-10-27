@@ -341,54 +341,16 @@ class FlaskAPIGuard:
 
     def _build_security_pipeline(self) -> None:
         logger = _present(self.logger, "logger")
-        from guard_core.sync.core.checks import (
-            AuthenticationCheck,
-            CloudIpRefreshCheck,
-            CloudProviderCheck,
-            CustomRequestCheck,
-            CustomValidatorsCheck,
-            EmergencyModeCheck,
-            HttpsEnforcementCheck,
-            IpSecurityCheck,
-            RateLimitCheck,
-            ReferrerCheck,
-            RequestLoggingCheck,
-            RequestSizeContentCheck,
-            RequiredHeadersCheck,
-            RouteConfigCheck,
-            SecurityCheckPipeline,
-            SuspiciousActivityCheck,
-            TimeWindowCheck,
-            UserAgentCheck,
-        )
+        from guard_core.sync.core.checks import build_default_pipeline
 
         middleware = self
         if not _config_and_logger_resolved(middleware):
             raise ValueError("SecurityConfig and logger must be resolved first")
-        checks = [
-            RouteConfigCheck(middleware),
-            EmergencyModeCheck(middleware),
-            HttpsEnforcementCheck(middleware),
-            RequestLoggingCheck(middleware),
-            RequestSizeContentCheck(middleware),
-            RequiredHeadersCheck(middleware),
-            AuthenticationCheck(middleware),
-            ReferrerCheck(middleware),
-            CustomValidatorsCheck(middleware),
-            TimeWindowCheck(middleware),
-            CloudIpRefreshCheck(middleware),
-            IpSecurityCheck(middleware),
-            CloudProviderCheck(middleware),
-            UserAgentCheck(middleware),
-            RateLimitCheck(middleware),
-            SuspiciousActivityCheck(middleware),
-            CustomRequestCheck(middleware),
-        ]
-
-        self.security_pipeline = SecurityCheckPipeline(checks)
+        pipeline = build_default_pipeline(middleware)
+        self.security_pipeline = pipeline
         logger.info(
-            f"Security pipeline initialized with {len(checks)} checks: "
-            f"{self.security_pipeline.get_check_names()}"
+            f"Security pipeline initialized with {len(pipeline)} checks: "
+            f"{pipeline.get_check_names()}"
         )
 
     def _configure_security_headers(
