@@ -4,7 +4,7 @@ import threading
 import time
 from collections import OrderedDict
 from collections.abc import Mapping
-from typing import TypeGuard
+from typing import TypeGuard, TypeVar
 
 from flask import Flask, Request, Response, g
 from flask.sansio.blueprints import Blueprint
@@ -51,6 +51,8 @@ from flaskapi_guard.adapters import (
     unwrap_response,
 )
 
+_T = TypeVar("_T")
+
 
 def _config_and_logger_resolved(
     guard: "FlaskAPIGuard",
@@ -58,6 +60,12 @@ def _config_and_logger_resolved(
     # the middleware protocol wants a config and a logger, the extension holds
     # them as None until init_app resolves them: that is the only mismatch
     return guard.config is not None and guard.logger is not None
+
+
+def _present(value: _T | None, name: str) -> _T:
+    if value is None:
+        raise RuntimeError(f"{name} is not initialized")
+    return value
 
 
 def _path_params(values: Mapping[str, object]) -> tuple[tuple[str, str], ...]:
@@ -124,31 +132,32 @@ class FlaskAPIGuard:
             raise ValueError("SecurityConfig must be provided")
 
     def _init_geo_ip_handler(self) -> None:
-        assert self.config is not None
-        configured = self.config.geo_ip_handler
-        # the config field also admits the async handler type; this adapter is sync
-        self.geo_ip_handler = (
-            configured if isinstance(configured, SyncGeoIPHandler) else None
-        )
+        config = _present(self.config, "config")
+        configured = config.geo_ip_handler
+        if configured is not None and not isinstance(configured, SyncGeoIPHandler):
+            raise TypeError(
+                f"geo_ip_handler must be a geo handler, got {type(configured).__name__}"
+            )
+        self.geo_ip_handler = configured
 
     def _init_redis_handler(self) -> None:
-        assert self.config is not None
+        config = _present(self.config, "config")
         self.redis_handler = None
-        if self.config.enable_redis:
+        if config.enable_redis:
             from guard_core.sync.handlers.redis_handler import RedisManager
 
-            self.redis_handler = RedisManager(self.config)
+            self.redis_handler = RedisManager(config)
 
     def _init_agent_handler(self) -> None:
-        assert self.config is not None
-        assert self.logger is not None
+        config = _present(self.config, "config")
+        logger = _present(self.logger, "logger")
         self.agent_handler = None
-        if not self.config.enable_agent:
+        if not config.enable_agent:
             return
 
-        agent_config = self.config.to_agent_config()
+        agent_config = config.to_agent_config()
         if not agent_config:
-            self.logger.warning(
+            logger.warning(
                 "Agent enabled but configuration is invalid. "
                 "Check agent_api_key and other required fields."
             )
@@ -158,22 +167,22 @@ class FlaskAPIGuard:
             from guard_agent import SyncGuardAgentHandler
 
             self.agent_handler = SyncGuardAgentHandler(agent_config)
-            self.logger.info("Guard Agent initialized successfully")
+            logger.info("Guard Agent initialized successfully")
         except ImportError:
-            self.logger.warning(
+            logger.warning(
                 "Agent enabled but guard_agent package not installed. "
                 "Install with: uv add guard-agent"
             )
         except Exception as e:
-            self.logger.error(f"Failed to initialize Guard Agent: {e}")
-            self.logger.warning("Continuing without agent functionality")
+            logger.error(f"Failed to initialize Guard Agent: {e}")
+            logger.warning("Continuing without agent functionality")
 
     def _init_core_components(self) -> None:
-        assert self.config is not None
-        assert self.logger is not None
+        config = _present(self.config, "config")
+        _present(self.logger, "logger")
 
         self.handler_initializer = HandlerInitializer(
-            config=self.config,
+            config=config,
             redis_handler=self.redis_handler,
             agent_handler=self.agent_handler,
             geo_ip_handler=self.geo_ip_handler,
@@ -184,36 +193,36 @@ class FlaskAPIGuard:
         self.geo_ip_handler = self.handler_initializer.geo_ip_handler
 
     def _init_route_resolver(self) -> None:
-        assert self.config is not None
-        assert self.logger is not None
+        config = _present(self.config, "config")
+        logger = _present(self.logger, "logger")
 
         routing_context = RoutingContext(
-            config=self.config,
-            logger=self.logger,
+            config=config,
+            logger=logger,
             guard_decorator=self.guard_decorator,
         )
         self.route_resolver = RouteConfigResolver(routing_context)
 
     def _build_event_bus_and_contexts(self) -> None:
-        assert self.config is not None
-        assert self.logger is not None
-        assert self.route_resolver is not None
-        assert self.handler_initializer is not None
+        config = _present(self.config, "config")
+        logger = _present(self.logger, "logger")
+        route_resolver = _present(self.route_resolver, "route_resolver")
+        handler_initializer = _present(self.handler_initializer, "handler_initializer")
 
-        if self.handler_initializer.composite_handler is not None:
-            self.event_bus = self.handler_initializer.build_event_bus(
+        if handler_initializer.composite_handler is not None:
+            self.event_bus = handler_initializer.build_event_bus(
                 geo_ip_handler=self.geo_ip_handler
             )
-            self.metrics_collector = self.handler_initializer.build_metrics_collector()
+            self.metrics_collector = handler_initializer.build_metrics_collector()
         else:
             self.event_bus = SecurityEventBus(
-                self.agent_handler, self.config, self.geo_ip_handler
+                self.agent_handler, config, self.geo_ip_handler
             )
-            self.metrics_collector = MetricsCollector(self.agent_handler, self.config)
+            self.metrics_collector = MetricsCollector(self.agent_handler, config)
 
         response_context = ResponseContext(
-            config=self.config,
-            logger=self.logger,
+            config=config,
+            logger=logger,
             metrics_collector=self.metrics_collector,
             agent_handler=self.agent_handler,
             redis_handler=self.redis_handler,
@@ -223,51 +232,51 @@ class FlaskAPIGuard:
         self.response_factory = ErrorResponseFactory(response_context)
 
         validation_context = ValidationContext(
-            config=self.config,
-            logger=self.logger,
+            config=config,
+            logger=logger,
             event_bus=self.event_bus,
         )
         self.validator = RequestValidator(validation_context)
 
         bypass_context = BypassContext(
-            config=self.config,
-            logger=self.logger,
+            config=config,
+            logger=logger,
             event_bus=self.event_bus,
-            route_resolver=self.route_resolver,
+            route_resolver=route_resolver,
             response_factory=self.response_factory,
             validator=self.validator,
         )
         self.bypass_handler = BypassHandler(bypass_context)
 
         behavioral_context = BehavioralContext(
-            config=self.config,
-            logger=self.logger,
+            config=config,
+            logger=logger,
             event_bus=self.event_bus,
             guard_decorator=self.guard_decorator,
-            behavior_tracker=self.handler_initializer.behavior_tracker,
+            behavior_tracker=handler_initializer.behavior_tracker,
             middleware=self,
         )
         self.behavioral_processor = BehavioralProcessor(behavioral_context)
         self._global_throttle_rules = any(
-            rule.action == "throttle" for rule in self.config.global_behavior_rules
+            rule.action == "throttle" for rule in config.global_behavior_rules
         )
 
     def init_app(
         self, app: Flask, config: "SecurityConfig[SyncGuardRequest] | None" = None
     ) -> None:
         self._resolve_config(config)
-        assert self.config is not None
+        resolved = _present(self.config, "config")
 
         self.logger = setup_custom_logging(
-            self.config.custom_log_file, log_format=self.config.log_format
+            resolved.custom_log_file, log_format=resolved.log_format
         )
         self.last_cloud_ip_refresh = 0
         self.suspicious_request_counts = {}
         self.last_cleanup = time.time()
-        self.rate_limit_handler = RateLimitManager(self.config)
+        self.rate_limit_handler = RateLimitManager(resolved)
         self._initialized = False
 
-        self._configure_security_headers(self.config)
+        self._configure_security_headers(resolved)
         self._init_geo_ip_handler()
         self._init_redis_handler()
         self._init_agent_handler()
@@ -279,28 +288,26 @@ class FlaskAPIGuard:
 
         app.extensions["flaskapi_guard"] = {
             "guard": self,
-            "config": self.config,
+            "config": resolved,
             "guard_decorator": self.guard_decorator,
         }
 
         self._build_security_pipeline()
-        self._cors_handler = (
-            CorsHandler(self.config) if self.config.enable_cors else None
-        )
+        self._cors_handler = CorsHandler(resolved) if resolved.enable_cors else None
 
         app.before_request(self._before_request)
         app.after_request(self._after_request)
         app.teardown_request(self._teardown_request)
 
     def _initialize_handlers(self) -> None:
-        assert self.handler_initializer is not None
-        self.handler_initializer.guard_decorator = self.guard_decorator
-        self.handler_initializer.initialize_redis_handlers()
-        self.geo_ip_handler = self.handler_initializer.geo_ip_handler
-        self.handler_initializer.initialize_agent_integrations()
+        handler_initializer = _present(self.handler_initializer, "handler_initializer")
+        handler_initializer.guard_decorator = self.guard_decorator
+        handler_initializer.initialize_redis_handlers()
+        self.geo_ip_handler = handler_initializer.geo_ip_handler
+        handler_initializer.initialize_agent_integrations()
 
-        if self.handler_initializer.composite_handler is not None:
-            self.agent_handler = self.handler_initializer.composite_handler
+        if handler_initializer.composite_handler is not None:
+            self.agent_handler = handler_initializer.composite_handler
             self._build_event_bus_and_contexts()
 
     def _redis_unavailable_response(self) -> Response:
@@ -311,27 +318,28 @@ class FlaskAPIGuard:
         return unwrap_response(guard_response)
 
     def _ensure_initialized(self) -> Response | None:
+        logger = _present(self.logger, "logger")
         if self._initialized:
             return None
-        assert self.logger is not None
         try:
             self._initialize_handlers()
         except GuardRedisError as e:
             if self.config is not None and self.config.passive_mode:
                 if _sample_init_outage_line():
-                    self.logger.error(
+                    logger.error(
                         "Redis unavailable during initialization: %s "
                         "(passive_mode=True, request passed through unguarded)",
                         e,
                     )
                 g.guard_init_passthrough = True
                 return None
-            self.logger.error("Redis unavailable during initialization: %s", e)
+            logger.error("Redis unavailable during initialization: %s", e)
             return self._redis_unavailable_response()
         self._initialized = True
         return None
 
     def _build_security_pipeline(self) -> None:
+        logger = _present(self.logger, "logger")
         from guard_core.sync.core.checks import (
             AuthenticationCheck,
             CloudIpRefreshCheck,
@@ -377,8 +385,7 @@ class FlaskAPIGuard:
         ]
 
         self.security_pipeline = SecurityCheckPipeline(checks)
-        assert self.logger is not None
-        self.logger.info(
+        logger.info(
             f"Security pipeline initialized with {len(checks)} checks: "
             f"{self.security_pipeline.get_check_names()}"
         )
@@ -461,11 +468,13 @@ class FlaskAPIGuard:
         client_ip: str,
         route_config: RouteConfig | None,
     ) -> Response | None:
-        assert self.behavioral_processor is not None
+        behavioral_processor = self.behavioral_processor
+        if behavioral_processor is None:
+            raise RuntimeError("behavioral_processor is not initialized")
         has_route_rules = route_config is not None and bool(route_config.behavior_rules)
         if not client_ip or not (has_route_rules or self._global_throttle_rules):
             return None
-        refused = self.behavioral_processor.process_usage_rules(
+        refused = behavioral_processor.process_usage_rules(
             guard_request, client_ip, route_config
         )
         return None if refused is None else unwrap_response(refused)
@@ -574,8 +583,10 @@ class FlaskAPIGuard:
     def _call_view(self, _guard_request: object) -> FlaskGuardResponse:
         from flask import current_app, request
 
-        assert request.endpoint is not None
-        view = current_app.ensure_sync(current_app.view_functions[request.endpoint])
+        endpoint = request.endpoint
+        if endpoint is None:
+            raise RuntimeError("the request matched no endpoint")
+        view = current_app.ensure_sync(current_app.view_functions[endpoint])
         rv = view(**(request.view_args or {}))
         return FlaskGuardResponse(current_app.make_response(rv))
 
@@ -586,12 +597,13 @@ class FlaskAPIGuard:
             return None
         return self._attach_cors_to_blocked(unwrap_response(early), request_headers)
 
-    def _guard_request_phase(self) -> Response | None:
+    def _guard_request_phase(
+        self,
+        config: SecurityConfig[SyncGuardRequest],
+        bypass_handler: BypassHandler,
+        route_resolver: RouteConfigResolver,
+    ) -> Response | None:
         from flask import request
-
-        assert self.config is not None
-        assert self.bypass_handler is not None
-        assert self.route_resolver is not None
 
         init_failure = self._ensure_initialized()
         if g.get("guard_init_passthrough", False):
@@ -611,20 +623,20 @@ class FlaskAPIGuard:
             return preflight_response
 
         early = self._early_response(
-            self.bypass_handler.handle_passthrough(guard_request, self._call_view),
+            bypass_handler.handle_passthrough(guard_request, self._call_view),
             request_headers,
         )
         if early is not None:
             return early
 
-        client_ip = extract_client_ip(guard_request, self.config, self.agent_handler)
-        route_config = self.route_resolver.get_route_config(guard_request)
+        client_ip = extract_client_ip(guard_request, config, self.agent_handler)
+        route_config = route_resolver.get_route_config(guard_request)
 
         g.client_ip = client_ip
         g.route_config = route_config
 
         early = self._early_response(
-            self.bypass_handler.handle_security_bypass(
+            bypass_handler.handle_security_bypass(
                 guard_request, self._call_view, route_config
             ),
             request_headers,
@@ -644,10 +656,14 @@ class FlaskAPIGuard:
         return None
 
     def _before_request(self) -> Response | None:
-        early = self._guard_request_phase()
+        config = self.config
+        bypass_handler = self.bypass_handler
+        route_resolver = self.route_resolver
+        if config is None or bypass_handler is None or route_resolver is None:
+            raise RuntimeError("the extension is not initialized")
+        early = self._guard_request_phase(config, bypass_handler, route_resolver)
         # After the phase: the app's scope exists once its lazy init has run.
-        assert self.config is not None
-        g.guard_app_scope_token = hold_app_scope(self.config)
+        g.guard_app_scope_token = hold_app_scope(config)
         if early is None and not g.get("guard_init_passthrough", False):
             g.guard_response_pass = True
         return early
@@ -656,13 +672,16 @@ class FlaskAPIGuard:
         release_app_scope(g.pop("guard_app_scope_token", None))
 
     def _after_request(self, response: Response) -> Response:
+        response_factory = self.response_factory
+        if response_factory is None:
+            raise RuntimeError("response_factory is not initialized")
+        behavioral_processor = self.behavioral_processor
+        if behavioral_processor is None:
+            raise RuntimeError("behavioral_processor is not initialized")
         from flask import request
 
         if not getattr(g, "guard_response_pass", False):
             return response
-
-        assert self.response_factory is not None
-        assert self.behavioral_processor is not None
 
         start_time = getattr(g, "request_start_time", time.time())
         response_time = time.time() - start_time
@@ -670,14 +689,14 @@ class FlaskAPIGuard:
 
         guard_request = FlaskGuardRequest(request)
         guard_response = FlaskGuardResponse(response)
-        result = self.response_factory.process_response(
+        result = response_factory.process_response(
             guard_request,
             guard_response,
             response_time,
             route_config,
-            process_behavioral_rules=self.behavioral_processor.process_return_rules,
+            process_behavioral_rules=behavioral_processor.process_return_rules,
             process_global_behavioral_rules=(
-                self.behavioral_processor.process_global_return_rules
+                behavioral_processor.process_global_return_rules
             ),
         )
         flask_response = unwrap_response(result)
@@ -711,8 +730,10 @@ class FlaskAPIGuard:
         return flask_response
 
     def _check_time_window(self, time_restrictions: dict[str, str]) -> bool:
-        assert self.validator is not None
-        result: bool = self.validator.check_time_window(time_restrictions)
+        validator = self.validator
+        if validator is None:
+            raise RuntimeError("validator is not initialized")
+        result: bool = validator.check_time_window(time_restrictions)
         return result
 
     def _check_route_ip_access(
@@ -736,9 +757,11 @@ class FlaskAPIGuard:
     def _process_decorator_usage_rules(
         self, request: Request, client_ip: str, route_config: RouteConfig
     ) -> Response | None:
-        assert self.behavioral_processor is not None
+        behavioral_processor = self.behavioral_processor
+        if behavioral_processor is None:
+            raise RuntimeError("behavioral_processor is not initialized")
         guard_request = FlaskGuardRequest(request)
-        refused = self.behavioral_processor.process_usage_rules(
+        refused = behavioral_processor.process_usage_rules(
             guard_request, client_ip, route_config
         )
         return None if refused is None else unwrap_response(refused)
@@ -750,40 +773,48 @@ class FlaskAPIGuard:
         client_ip: str,
         route_config: RouteConfig,
     ) -> None:
-        assert self.behavioral_processor is not None
+        behavioral_processor = self.behavioral_processor
+        if behavioral_processor is None:
+            raise RuntimeError("behavioral_processor is not initialized")
         guard_request = FlaskGuardRequest(request)
         guard_response = FlaskGuardResponse(response)
-        self.behavioral_processor.process_return_rules(
+        behavioral_processor.process_return_rules(
             guard_request, guard_response, client_ip, route_config
         )
 
     def _get_endpoint_id(self, request: Request) -> str:
-        assert self.behavioral_processor is not None
+        behavioral_processor = self.behavioral_processor
+        if behavioral_processor is None:
+            raise RuntimeError("behavioral_processor is not initialized")
         guard_request = FlaskGuardRequest(request)
-        result: str = self.behavioral_processor.get_endpoint_id(guard_request)
+        result: str = behavioral_processor.get_endpoint_id(guard_request)
         return result
 
     def refresh_cloud_ip_ranges(self) -> None:
-        assert self.config is not None
+        config = self.config
+        if config is None:
+            raise RuntimeError("config is not initialized")
 
-        if not self.config.block_cloud_providers:
+        if not config.block_cloud_providers:
             return
 
         providers: set[str] = {
-            str(provider) for provider in self.config.block_cloud_providers
+            str(provider) for provider in config.block_cloud_providers
         }
-        cloud_handler_for(self.config).refresh_async(providers)
+        cloud_handler_for(config).refresh_async(providers)
         self.last_cloud_ip_refresh = int(time.time())
 
     def create_error_response(
         self, status_code: int, default_message: str
     ) -> GuardResponse:
-        assert self.response_factory is not None
-        result: GuardResponse = self.response_factory.create_error_response(
+        response_factory = self.response_factory
+        if response_factory is None:
+            raise RuntimeError("response_factory is not initialized")
+        result: GuardResponse = response_factory.create_error_response(
             status_code, default_message
         )
         return result
 
     def reset(self) -> None:
-        assert self.rate_limit_handler is not None
-        self.rate_limit_handler.reset()
+        rate_limit_handler = _present(self.rate_limit_handler, "rate_limit_handler")
+        rate_limit_handler.reset()
