@@ -5,6 +5,7 @@ Single-file Flask application demonstrating all flaskapi-guard security features
 ## Quick Start
 
 ```bash
+export IPINFO_TOKEN=<your token>  # required: free at https://ipinfo.io/signup
 docker compose up --build
 ```
 
@@ -39,7 +40,7 @@ Environment variables (see `.env`):
 
 - `REDIS_URL` - Redis connection string
 - `REDIS_PREFIX` - Key prefix for Redis
-- `IPINFO_TOKEN` - IPInfo API token
+- `IPINFO_TOKEN` - IPInfo API token (required: the country routes need a GeoIP source; the example stops at startup without it, and `docker compose` refuses to start)
 
 ## Cleanup
 

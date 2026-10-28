@@ -482,7 +482,8 @@ from flask import Flask
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig, SecurityDecorator
 
 app = Flask(__name__)
-config = SecurityConfig()
+# ipinfo_token is the geo source that block_countries needs (free at ipinfo.io)
+config = SecurityConfig(ipinfo_token="your_ipinfo_token_here")
 
 # Create decorator instance
 guard_deco = SecurityDecorator(config)
@@ -566,6 +567,7 @@ def admin_endpoint():
     return {"status": "admin action"}
 
 
+# block_countries needs a geo source on the config: SecurityConfig(ipinfo_token="your_ipinfo_token_here")
 @app.route("/api/rewards")
 @guard_deco.usage_monitor(max_calls=50, window=3600, action="ban")
 @guard_deco.return_monitor("rare_item", max_occurrences=3, window=86400, action="ban")
