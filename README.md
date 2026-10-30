@@ -408,7 +408,7 @@ config = SecurityConfig(
         },
         "frame_options": "DENY",
         "content_type_options": "nosniff",
-        "xss_protection": "1; mode=block",
+        "xss_protection": "0",
         "referrer_policy": "strict-origin-when-cross-origin",
         "permissions_policy": "geolocation=(), microphone=(), camera=()",
         "custom": {"X-Custom-Header": "CustomValue"},
