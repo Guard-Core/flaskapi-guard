@@ -40,6 +40,8 @@ Unreleased
 
 - **Fixed** - **An oversize body under `MAX_CONTENT_LENGTH` answers `413` again, without the suspicious-activity warning.** The adapter's body read let Werkzeug's `RequestEntityTooLarge` reach the engine, which reported an unreadable body: `400` and a warning for every oversize request. The adapter now leaves the body to Flask, so the view's own read answers `413` as in v4.4.0.
 
+- **Fixed** - **A `bypass(["all"])` view runs inside its own app's scope.** The scope was held after the guard phase that calls the bypass view, so in a process with two guarded apps a ban, event or Redis write made by that view used another app's configuration. The scope is now held right after lazy initialization, before the bypass view runs.
+
 ___
 
 v4.4.0 (2026-10-15)

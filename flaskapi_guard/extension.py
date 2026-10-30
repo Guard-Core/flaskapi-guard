@@ -545,6 +545,7 @@ class FlaskAPIGuard:
         if init_failure is not None:
             return self._attach_cors_to_blocked(init_failure, request_headers)
 
+        g.guard_app_scope_token = hold_app_scope(config)
         g.request_start_time = time.time()
         guard_request = FlaskGuardRequest(request)
         self._populate_guard_state(guard_request)
@@ -595,8 +596,10 @@ class FlaskAPIGuard:
         if config is None or bypass_handler is None or route_resolver is None:
             raise RuntimeError("the extension is not initialized")
         early = self._guard_request_phase(config, bypass_handler, route_resolver)
-        # After the phase: the app's scope exists once its lazy init has run.
-        g.guard_app_scope_token = hold_app_scope(config)
+        # The phase holds the scope once lazy init ran; a phase that returned
+        # before that point (init failure, passthrough) holds it here.
+        if "guard_app_scope_token" not in g:
+            g.guard_app_scope_token = hold_app_scope(config)
         if early is None and not g.get("guard_init_passthrough", False):
             g.guard_response_pass = True
         return early
