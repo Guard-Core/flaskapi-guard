@@ -79,13 +79,15 @@ _MATERIALIZED = {
 @pytest.mark.parametrize("name", sorted(_MATERIALIZED))
 def test_the_capability_matches_the_native_response_type(name: str) -> None:
     with tempfile.TemporaryDirectory() as tmp:
-        native = _native_responses(Path(tmp) / "file.bin")[name]
+        responses = _native_responses(Path(tmp) / "file.bin")
         try:
             assert (
-                FlaskGuardResponse(native).body_is_materialized is (_MATERIALIZED[name])
+                FlaskGuardResponse(responses[name]).body_is_materialized
+                is (_MATERIALIZED[name])
             )
         finally:
-            native.close()
+            for response in responses.values():
+                response.close()
 
 
 def test_reading_the_capability_buffers_nothing() -> None:
