@@ -209,6 +209,8 @@ Dynamic Rules & Emergency Mode
 | `emergency_mode` | bool | False | Emergency lockdown mode |
 | `emergency_whitelist` | list[str] | [] | IPs allowed during emergency mode |
 
+A dynamic rule adds to your configuration and never wipes it. Blocked countries, blocked cloud providers and blocked user agents are added to your static lists. `whitelist_countries` replaces your allow-list only when the rule's value is non-empty and valid. `endpoint_rate_limits` merge per endpoint: the rule's value wins for the endpoints it names and your static limits stay for the rest. When the rule expires or is revoked, your static configuration applies again, exactly as you wrote it.
+
 Usage Example
 -------------
 

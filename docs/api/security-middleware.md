@@ -48,7 +48,7 @@ The extension processes requests through a modular pipeline:
 Request -> before_request hook
     |
 1. BypassHandler.handle_passthrough()
-    |-- No client IP? -> Pass through
+    |-- No client address? -> 403 under fail_secure (the default); logged and admitted in passive_mode
     +-- Excluded path? -> Pass through
     |
 2. Extract client IP and route config

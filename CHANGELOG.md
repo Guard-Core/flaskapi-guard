@@ -46,6 +46,8 @@ Unreleased
 
 - **Fixed** - **Routes on a subdomain or under `host_matching` are visible to the route gate.** `resolve_route`, the static-file check and `allowed_methods` bound the URL map with no host, so such a route was not found: with `route_resolution_strict=True` a wrong-method request to it was answered `404` without `Allow`, where the unguarded app answers `405` with `Allow`. They now bind the URL map as Flask binds it for the request being served.
 
+- **Fixed (docs)** - **The docs state how a dynamic rule combines with the config, and what `passive_mode` does for a client with no address.** A dynamic rule adds to your configuration and never wipes it: blocked countries, blocked cloud providers and blocked user agents are added to your static lists, `whitelist_countries` is replaced only when the rule's value is non-empty and valid, and `endpoint_rate_limits` merge per endpoint (the rule's value wins for the endpoints it names, your static limits stay for the rest). A request from a client with no address is refused under `fail_secure` (the default) and logged and admitted under `passive_mode`; the architecture pages that said it passes through are corrected.
+
 ___
 
 v4.4.0 (2026-10-15)
