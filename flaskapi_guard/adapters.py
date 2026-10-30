@@ -1,5 +1,5 @@
 import io
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from typing import IO, Protocol
 
@@ -8,9 +8,18 @@ from flask.ctx import _AppCtxGlobals
 from guard_core.exceptions import BodyReadStalledError
 from guard_core.protocols.request_protocol import GuardRequestHeaders
 from guard_core.protocols.response_protocol import GuardResponse, GuardResponseHeaders
+from werkzeug.exceptions import RequestEntityTooLarge
 
 _READ_CHUNK_BYTES = 65536
 _SERVER_SOCKET_KEYS = ("werkzeug.socket", "gunicorn.socket")
+
+
+def _empty_when_oversize(read: Callable[[], bytes]) -> bytes:
+    # MAX_CONTENT_LENGTH is Flask's to enforce: the view's own read answers 413.
+    try:
+        return read()
+    except RequestEntityTooLarge:
+        return b""
 
 
 def _caused_by_timeout(error: BaseException | None) -> bool:
@@ -121,16 +130,19 @@ class FlaskGuardRequest:
         return self._request.args
 
     def body(self) -> bytes:
-        result: bytes = self._request.get_data()
-        return result
+        return _empty_when_oversize(self._request.get_data)
 
     def read_body_prefix(self, max_bytes: int) -> bytes:
         if max_bytes <= 0:
             return b""
-        result: bytes = self._request.get_data()[:max_bytes]
-        return result
+        return _empty_when_oversize(lambda: self._request.get_data()[:max_bytes])
 
     def read_body_prefix_until_idle(self, max_bytes: int, idle_timeout: float) -> bytes:
+        return _empty_when_oversize(
+            lambda: self._read_prefix_until_idle(max_bytes, idle_timeout)
+        )
+
+    def _read_prefix_until_idle(self, max_bytes: int, idle_timeout: float) -> bytes:
         if max_bytes <= 0:
             return b""
         cached = getattr(self._request, "_cached_data", None)

@@ -38,6 +38,8 @@ Unreleased
 
 - **Added** - **Python 3.15 is supported.** `requires-python` is now `>=3.10,<3.16` and 3.15 joins the test matrix as a required version.
 
+- **Fixed** - **An oversize body under `MAX_CONTENT_LENGTH` answers `413` again, without the suspicious-activity warning.** The adapter's body read let Werkzeug's `RequestEntityTooLarge` reach the engine, which reported an unreadable body: `400` and a warning for every oversize request. The adapter now leaves the body to Flask, so the view's own read answers `413` as in v4.4.0.
+
 ___
 
 v4.4.0 (2026-10-15)
