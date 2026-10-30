@@ -119,6 +119,7 @@ class FlaskAPIGuard:
         self._cors_handler: CorsHandler | None = None
         self._app: Flask | None = None
         self._initialized: bool = False
+        self._init_lock = threading.Lock()
         self._guard_response_factory = FlaskResponseFactory()
 
         if app is not None:
@@ -319,6 +320,12 @@ class FlaskAPIGuard:
         return unwrap_response(guard_response)
 
     def _ensure_initialized(self) -> Response | None:
+        if self._initialized:
+            return None
+        with self._init_lock:
+            return self._initialize_handlers_once()
+
+    def _initialize_handlers_once(self) -> Response | None:
         logger = _present(self.logger, "logger")
         if self._initialized:
             return None

@@ -42,6 +42,8 @@ Unreleased
 
 - **Fixed** - **A `bypass(["all"])` view runs inside its own app's scope.** The scope was held after the guard phase that calls the bypass view, so in a process with two guarded apps a ban, event or Redis write made by that view used another app's configuration. The scope is now held right after lazy initialization, before the bypass view runs.
 
+- **Fixed** - **The first request initializes the handlers once.** Concurrent first requests each ran the lazy initialization and rebuilt the event bus, bypass handler and behavioral processor while others were served. The initialization now takes a lock, and the requests that waited for it find it done.
+
 ___
 
 v4.4.0 (2026-10-15)
