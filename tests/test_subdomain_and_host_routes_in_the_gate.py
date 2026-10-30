@@ -1,10 +1,11 @@
 import pytest
-from flask import Blueprint, Flask, Response
+from flask import Blueprint, Flask
+from werkzeug.test import TestResponse
 
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig
 
 
-def _allowed(response: Response) -> set[str]:
+def _allowed(response: TestResponse) -> set[str]:
     return {m.strip() for m in response.headers["Allow"].split(",")}
 
 

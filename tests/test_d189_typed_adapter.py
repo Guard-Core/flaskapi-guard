@@ -13,6 +13,7 @@ from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard
 from flaskapi_guard.adapters import FlaskGuardRequest, FlaskResponseFactory
+from tests.agent_loop import close_the_agent_event_loop
 
 
 def _agent_config() -> AgentConfig:
@@ -35,7 +36,7 @@ def test_extension_built_inside_a_running_loop_holds_the_sync_agent_handler() ->
             return FlaskAPIGuard(Flask(__name__), config=_agent_guard_config())
 
     # the handler is a process-wide singleton and stop() ends its loop thread
-    SyncGuardAgentHandler._instance = None
+    close_the_agent_event_loop()
     try:
         guard = asyncio.run(build())
 
@@ -44,7 +45,7 @@ def test_extension_built_inside_a_running_loop_holds_the_sync_agent_handler() ->
         guard.agent_handler.start()
         guard.agent_handler.stop()
     finally:
-        SyncGuardAgentHandler._instance = None
+        close_the_agent_event_loop()
 
 
 def test_pipeline_is_not_built_before_config_and_logger_are_resolved() -> None:
