@@ -229,6 +229,16 @@ To install `flaskapi-guard`, use pip:
 pip install flaskapi-guard
 ```
 
+Optional extras. The base install carries `flaskapi-guard`'s own dependencies and guard-core (`cachetools`, `pydantic` and `typing-extensions`); it does not carry the Redis client, the GeoIP reader or the downloaders. A config that needs a package you did not install is refused when `SecurityConfig` is built, with a message that names the extra:
+
+| Extra | Adds | Needed for |
+|---|---|---|
+| `flaskapi-guard[redis]` | the Redis client | `enable_redis=True`: Redis-backed rate limits, bans, caches and shared state |
+| `flaskapi-guard[geo]` | `maxminddb` and the downloader of the built-in GeoIP manager | country rules (`blocked_countries`, `whitelist_countries`, `@block_countries`, `@allow_countries`, `@geo_rate_limit`) and `ipinfo_token` |
+| `flaskapi-guard[cloud]` | `aiohttp` and `requests` | `block_cloud_providers` |
+
+Combine them as needed, for example `pip install "flaskapi-guard[redis,geo]"`.
+
 ___
 
 ## Usage
