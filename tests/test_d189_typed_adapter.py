@@ -62,12 +62,16 @@ def test_redirect_outside_an_app_context_still_answers_a_flask_response() -> Non
     assert created.headers["Location"] == "/elsewhere"
 
 
-def test_a_configured_object_that_is_not_a_geo_handler_fails_at_init() -> None:
+def test_a_configured_object_that_is_not_a_geo_handler_is_accepted_as_in_v4_4_0() -> (
+    None
+):
     config = SecurityConfig[SyncGuardRequest](enable_redis=False)
     config.__dict__["geo_ip_handler"] = object()
+    app = Flask(__name__)
 
-    with pytest.raises(TypeError, match="geo_ip_handler must be a geo handler.*object"):
-        FlaskAPIGuard(Flask(__name__), config=config)
+    FlaskAPIGuard(app, config=config)
+
+    assert app.test_client().get("/").status_code == 404
 
 
 def test_no_geo_handler_stays_none() -> None:

@@ -134,13 +134,9 @@ class FlaskAPIGuard:
             raise ValueError("SecurityConfig must be provided")
 
     def _init_geo_ip_handler(self) -> None:
-        config = _present(self.config, "config")
-        configured = config.geo_ip_handler
-        if configured is not None and not isinstance(configured, SyncGeoIPHandler):
-            raise TypeError(
-                f"geo_ip_handler must be a geo handler, got {type(configured).__name__}"
-            )
-        self.geo_ip_handler = configured
+        # The handler is resolved for this tree by HandlerInitializer, which takes
+        # config.geo_ip_handler as configured (v4.4.0 accepted any object here).
+        self.geo_ip_handler = None
 
     def _init_redis_handler(self) -> None:
         config = _present(self.config, "config")
@@ -187,7 +183,7 @@ class FlaskAPIGuard:
             config=config,
             redis_handler=self.redis_handler,
             agent_handler=self.agent_handler,
-            geo_ip_handler=self.geo_ip_handler,
+            geo_ip_handler=config.geo_ip_handler,
             rate_limit_handler=self.rate_limit_handler,
             guard_decorator=self.guard_decorator,
             adapter="flaskapi-guard",
