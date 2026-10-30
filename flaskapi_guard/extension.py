@@ -42,6 +42,7 @@ from guard_core.sync.protocols.redis_protocol import SyncRedisHandlerProtocol
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from guard_core.sync.utils import extract_client_ip, setup_custom_logging
 from werkzeug.exceptions import HTTPException
+from werkzeug.routing import MapAdapter
 from werkzeug.security import safe_join
 
 from flaskapi_guard.adapters import (
@@ -440,12 +441,22 @@ class FlaskAPIGuard:
                 _path_params(request.view_args or {}),
             )
 
+    def _url_adapter(self) -> MapAdapter:
+        """The URL map bound as Flask binds it for the request being served, so a
+        subdomain or `host_matching` route is found; unbound outside a request."""
+        from flask import current_app, has_request_context, request
+
+        adapter = current_app.create_url_adapter(
+            request if has_request_context() else None
+        )
+        return adapter or current_app.url_map.bind("")
+
     def resolve_route(
         self, path: str
     ) -> tuple[tuple[object, tuple[tuple[str, str], ...]], ...]:
         from flask import current_app
 
-        url_adapter = current_app.url_map.bind("")
+        url_adapter = self._url_adapter()
         identities: dict[tuple[object, tuple[tuple[str, str], ...]], None] = {}
         for method in url_adapter.allowed_methods(path):
             endpoint, args = url_adapter.match(path, method=method)
@@ -455,12 +466,12 @@ class FlaskAPIGuard:
         return tuple(identities)
 
     def _endpoint_and_args(self, path: str) -> tuple[str, Mapping[str, object]] | None:
-        from flask import current_app, has_request_context, request
+        from flask import has_request_context, request
 
         if has_request_context() and request.endpoint and request.path == path:
             return request.endpoint, request.view_args or {}
         try:
-            endpoint, args = current_app.url_map.bind("").match(path, method="GET")
+            endpoint, args = self._url_adapter().match(path, method="GET")
         except HTTPException:
             return None
         return endpoint, args
@@ -486,9 +497,8 @@ class FlaskAPIGuard:
         return served is not None and os.path.isfile(served)
 
     def allowed_methods(self, path: str) -> tuple[str, ...]:
-        from flask import current_app
 
-        return tuple(current_app.url_map.bind("").allowed_methods(path))
+        return tuple(self._url_adapter().allowed_methods(path))
 
     def static_route_prefixes(self) -> tuple[str, ...]:
         from flask import current_app, has_app_context

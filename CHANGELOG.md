@@ -44,6 +44,8 @@ Unreleased
 
 - **Fixed** - **The first request initializes the handlers once.** Concurrent first requests each ran the lazy initialization and rebuilt the event bus, bypass handler and behavioral processor while others were served. The initialization now takes a lock, and the requests that waited for it find it done.
 
+- **Fixed** - **Routes on a subdomain or under `host_matching` are visible to the route gate.** `resolve_route`, the static-file check and `allowed_methods` bound the URL map with no host, so such a route was not found: with `route_resolution_strict=True` a wrong-method request to it was answered `404` without `Allow`, where the unguarded app answers `405` with `Allow`. They now bind the URL map as Flask binds it for the request being served.
+
 ___
 
 v4.4.0 (2026-10-15)
