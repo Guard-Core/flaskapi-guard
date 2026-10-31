@@ -131,19 +131,27 @@ Logging
 FlaskAPI Guard uses a unified logging approach with the `log_activity` function that handles different types of log events:
 
 ```python
+from flask import request
+from flaskapi_guard import FlaskGuardRequest
 from guard_core.sync.utils import log_activity
 
+# log_activity takes the guard-core request protocol, so wrap the Flask request
+guard_request = FlaskGuardRequest(request)
+
 # Log a regular request
-log_activity(request, logger)
+log_activity(guard_request, logger)
 
 # Log suspicious activity
 log_activity(
-    request, logger, log_type="suspicious", reason="Suspicious IP address detected"
+    guard_request,
+    logger,
+    log_type="suspicious",
+    reason="Suspicious IP address detected",
 )
 
 # Log penetration attempt in passive mode
 log_activity(
-    request,
+    guard_request,
     logger,
     log_type="suspicious",
     reason="SQL injection attempt detected",
@@ -152,7 +160,7 @@ log_activity(
 )
 
 # Log with specific level
-log_activity(request, logger, level="ERROR", reason="Authentication failure")
+log_activity(guard_request, logger, level="ERROR", reason="Authentication failure")
 ```
 
 ___

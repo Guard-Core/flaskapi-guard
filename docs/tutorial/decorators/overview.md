@@ -23,7 +23,12 @@ from flaskapi_guard import SecurityConfig
 from flaskapi_guard import SecurityDecorator
 
 app = Flask(__name__)
-config = SecurityConfig()
+# block_countries and geo_rate_limit need a geo source, and return_monitor
+# needs response body scanning
+config = SecurityConfig(
+    ipinfo_token="your_ipinfo_token_here",
+    behavior_scan_response_body=True,
+)
 guard_deco = SecurityDecorator(config)
 
 
@@ -149,8 +154,11 @@ app = Flask(__name__)
 config = SecurityConfig(
     enable_ip_banning=True,
     enable_rate_limiting=True,
-    rate_limit_requests=100,
+    rate_limit=100,
     rate_limit_window=3600,
+    # geo source for allow_countries, response body scanning for return_monitor
+    ipinfo_token="your_ipinfo_token_here",
+    behavior_scan_response_body=True,
 )
 
 # Create decorator instance
@@ -199,7 +207,7 @@ This allows flexible overrides where routes can customize their security while m
 
 ```python
 # Global: 100 requests/hour
-config = SecurityConfig(rate_limit_requests=100, rate_limit_window=3600)
+config = SecurityConfig(rate_limit=100, rate_limit_window=3600)
 
 
 @app.route("/api/public")

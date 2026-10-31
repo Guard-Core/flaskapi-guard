@@ -70,15 +70,14 @@ def remove_pattern(cls, pattern: str, custom: bool = False) -> bool:
 clear_custom_patterns
 ---------------------
 
-```python
-@classmethod
-def clear_custom_patterns(cls) -> None:
-    """
-    Clear all custom patterns.
+There is no single call that clears the custom patterns. Remove each one with `remove_pattern()`:
 
-    Note: This does not affect default patterns loaded from YAML files.
-    """
+```python
+for pattern in sus_patterns_handler.get_custom_patterns():
+    sus_patterns_handler.remove_pattern(pattern, custom=True)
 ```
+
+The default patterns come from the built-in pattern table and are not affected.
 
 Pattern Retrieval Methods
 -------------------------
@@ -111,8 +110,8 @@ def get_all_compiled_patterns(
         Context set contains applicable input sources:
         "query_param", "url_path", "header", "request_body", "unknown".
         Category is the threat label used for category-based filtering and
-        the `DetectionResult.threat_categories` field (e.g. "sql_injection",
-        "xss", "path_traversal", "command_injection", "recon").
+        the `DetectionResult.threat_categories` field (e.g. "sqli",
+        "xss", "path_traversal", "cmd_injection", "recon").
     """
 ```
 
@@ -277,13 +276,17 @@ The `detect()` method returns a comprehensive result dictionary:
         {
             "type": "regex",  # Detection type
             "pattern": str,  # Pattern that matched
+            "match": str,  # The matched text
+            "position": int,  # Offset of the match
             "execution_time": float,  # Time to execute pattern
+            "category": str,  # e.g. "sqli", "xss"
+            "weight": float,  # The pattern's weight
         },
         {
             "type": "semantic",  # Heuristic detection
-            "score": float,  # Threat score
-            "attack_types": dict,  # Attack type probabilities
-            "confidence": str,  # low/medium/high
+            "attack_type": str,  # Attack family, e.g. "sql"
+            "probability": float,  # Score of that family
+            "analysis": dict,  # The SemanticAnalyzer.analyze() result
         },
     ],
     "context": str,  # Where content came from
@@ -308,10 +311,10 @@ Basic Pattern Management
 from flaskapi_guard import sus_patterns_handler
 
 # Add custom pattern
-sus_patterns_handler.add_pattern(r"(?i)malicious.*pattern", custom=True)
+sus_patterns_handler.add_pattern(r"(?i)malicious_pattern", custom=True)
 
 # Remove pattern
-success = sus_patterns_handler.remove_pattern(r"(?i)malicious.*pattern", custom=True)
+success = sus_patterns_handler.remove_pattern(r"(?i)malicious_pattern", custom=True)
 
 # Get all patterns
 patterns = sus_patterns_handler.get_all_patterns()
@@ -321,7 +324,8 @@ Enhanced Threat Detection
 -------------------------
 
 ```python
-# Perform detection with full context
+# Perform detection with full context (configure the handler with your SecurityConfig first)
+sus_patterns_handler.configure(config)
 result = sus_patterns_handler.detect(
     content="SELECT * FROM users WHERE id=1 OR 1=1",
     ip_address="192.168.1.100",
@@ -336,7 +340,7 @@ if result["is_threat"]:
         if threat["type"] == "regex":
             print(f"Pattern matched: {threat['pattern']}")
         elif threat["type"] == "semantic":
-            print(f"Attack type: {threat.get('attack_types')}")
+            print(f"Attack type: {threat.get('attack_type')}")
 ```
 
 Performance Monitoring
@@ -346,13 +350,13 @@ Performance Monitoring
 # Get performance statistics
 stats = sus_patterns_handler.get_performance_stats()
 if stats:
-    print(f"Average execution time: {stats['summary']['average_time']}")
+    print(f"Average execution time: {stats['summary']['avg_execution_time']}")
     print(f"Timeout rate: {stats['summary']['timeout_rate']}")
 
     # Check for slow patterns
     for pattern in stats["slow_patterns"]:
         print(f"Slow pattern: {pattern['pattern']}")
-        print(f"Average time: {pattern['average_time']}")
+        print(f"Average time: {pattern['avg_execution_time']}")
 
 # Check component status
 status = sus_patterns_handler.get_component_status()
@@ -407,7 +411,7 @@ When Redis is enabled:
 sus_patterns_handler.add_pattern(r"custom.*", custom=True)
 
 # Retrieved on startup
-patterns = redis_handler.get("custom_patterns")
+patterns = redis_handler.get_key("patterns", "custom_list")
 ```
 
 ___

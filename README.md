@@ -195,7 +195,9 @@ from flask import Flask, jsonify
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig
 
 app = Flask(__name__)
-guard = FlaskAPIGuard(app, config=SecurityConfig(enable_agent=True))
+guard = FlaskAPIGuard(
+    app, config=SecurityConfig(enable_agent=True, agent_api_key="your-api-key")
+)
 
 
 @app.route("/health/guard")
@@ -214,6 +216,7 @@ from flaskapi_guard import FlaskAPIGuard, SecurityConfig, __version__
 
 config = SecurityConfig(
     enable_agent=True,
+    agent_api_key="your-api-key",
     agent_guard_version=__version__,
 )
 FlaskAPIGuard(app, config=config)
@@ -266,7 +269,7 @@ config = SecurityConfig(
     rate_limit=100,
     enforce_https=True,
     enable_cors=True,
-    cors_allow_origins=["*"],
+    cors_allow_origins=["https://example.com"],
     cors_allow_methods=["GET", "POST"],
     cors_allow_headers=["*"],
     cors_allow_credentials=True,
@@ -369,14 +372,17 @@ Detect and log potential penetration attempts using the `detect_penetration_atte
 
 ```python
 from flask import request, jsonify
-from flaskapi_guard.utils import detect_penetration_attempt
+from flaskapi_guard import FlaskGuardRequest
+from guard_core.sync.utils import detect_penetration_attempt
 
 
 @app.route("/submit", methods=["POST"])
 def submit_data():
-    is_suspicious, trigger_info = detect_penetration_attempt(request)
-    if is_suspicious:
-        return jsonify({"error": f"Suspicious activity detected: {trigger_info}"}), 400
+    result = detect_penetration_attempt(FlaskGuardRequest(request), config)
+    if result.is_threat:
+        return jsonify(
+            {"error": f"Suspicious activity detected: {result.trigger_info}"}
+        ), 400
     return jsonify({"message": "Data submitted successfully"})
 ```
 
@@ -446,7 +452,7 @@ Configure CORS settings for your Flask application using the `enable_cors` and r
 ```python
 config = SecurityConfig(
     enable_cors=True,
-    cors_allow_origins=["*"],
+    cors_allow_origins=["https://example.com"],
     cors_allow_methods=["GET", "POST"],
     cors_allow_headers=["*"],
     cors_allow_credentials=True,
@@ -492,8 +498,12 @@ from flask import Flask
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig, SecurityDecorator
 
 app = Flask(__name__)
-# ipinfo_token is the geo source that block_countries needs (free at ipinfo.io)
-config = SecurityConfig(ipinfo_token="your_ipinfo_token_here")
+# ipinfo_token is the geo source that block_countries needs (free at ipinfo.io);
+# behavior_scan_response_body lets return_monitor read response bodies
+config = SecurityConfig(
+    ipinfo_token="your_ipinfo_token_here",
+    behavior_scan_response_body=True,
+)
 
 # Create decorator instance
 guard_deco = SecurityDecorator(config)
@@ -615,7 +625,7 @@ config = SecurityConfig(
         "192.168.1.0/24",
     ],  # List of trusted proxy IPs or CIDR ranges
     trusted_proxy_depth=1,  # How many proxies to expect in chain
-    trust_x_forwarded_proto=True,  # Whether to trust X-Forwarded-Proto for HTTPS detection (default: True)
+    trust_x_forwarded_proto=True,  # Whether to trust X-Forwarded-Proto for HTTPS detection (default: False)
 )
 ```
 
@@ -643,9 +653,10 @@ from flaskapi_guard import IPInfoManager
 config = SecurityConfig(
     geo_ip_handler=IPInfoManager("your_ipinfo_token_here"),
     blocked_countries=["AR", "IT"],
-    whitelist_countries=["US", "CA"],
 )
 ```
+
+Set `whitelist_countries=["US", "CA"]` instead of `blocked_countries` to allow only those countries. A non-empty `whitelist_countries` is restrictive, so `blocked_countries` has no effect while it is set and guard-core warns about the combination.
 
 The database is automatically downloaded and cached locally when the extension starts, if required, and it's updated daily to ensure accuracy.
 
@@ -660,13 +671,18 @@ class CustomGeoIPHandler:
 
     def initialize_redis(self, redis_handler: "RedisManager") -> None: ...
 
+    def initialize_agent(self, agent_handler: "SyncAgentHandlerProtocol") -> None: ...
+
     def get_country(self, ip: str) -> str | None: ...
+
+    def refresh(self) -> None: ...
+
+    def close(self) -> None: ...
 
 
 config = SecurityConfig(
     geo_ip_handler=CustomGeoIPHandler(),
     blocked_countries=["AR", "IT"],
-    whitelist_countries=["US", "CA"],
 )
 ```
 
@@ -798,9 +814,9 @@ The `SecurityConfig` class defines the structure for security configuration, inc
 ### Attributes
 
 - **geo_ip_handler**: ```GeoIPHandler``` - Protocol that allows for IP geolocation functionality.
-- **enable_redis**: ```bool``` - Enable Redis for distributed state (default: True). When disabled, uses in-memory storage.
+- **enable_redis**: ```bool``` - Enable Redis for distributed state. Left unset, Redis is on exactly when a Redis connection field (`redis_url`, `redis_prefix` and the other `redis_*` settings) was set explicitly, and off otherwise (default: False). An explicit `enable_redis` always wins. When disabled, uses in-memory storage.
 - **redis_url**: ```str | None``` - Redis connection URL (default: "redis://localhost:6379").
-- **redis_prefix**: ```str``` - Prefix for Redis keys (default: "flaskapi_guard:").
+- **redis_prefix**: ```str``` - Prefix for Redis keys (default: "guard_core:").
 - **trusted_proxies**: ```list[str] | None``` - List of trusted proxy IPs or CIDR ranges.
 - **trusted_proxy_depth**: ```int``` - How many proxies to expect in chain.
 - **trust_x_forwarded_proto**: ```bool``` - Whether to trust X-Forwarded-Proto for HTTPS detection.
@@ -824,7 +840,7 @@ The `SecurityConfig` class defines the structure for security configuration, inc
 - **cors_allow_credentials**: ```bool``` - Whether to allow credentials in CORS requests.
 - **cors_expose_headers**: ```list[str]``` - A list of headers that are exposed in CORS responses.
 - **cors_max_age**: ```int``` - The maximum age in seconds that the results of a preflight request can be cached.
-- **block_cloud_providers**: ```set[str]``` - Case-sensitive cloud provider names to block. Valid values: 'AWS', 'GCP', 'Azure'. Invalid entries are silently ignored.
+- **block_cloud_providers**: ```set[str]``` - Cloud provider names to block, matched case-insensitively. Valid values: 'AWS', 'Azure', 'DigitalOcean', 'GCP', 'Linode', 'Vultr'. A bare name blocks the whole provider and a `:!region` suffix carves out a region exception. An unknown name raises a validation error.
 - **passive_mode**: ```bool``` - When enabled, logs suspicious activity without blocking requests (default: False).
 - **enable_ip_banning**: ```bool``` - Enable or disable IP banning functionality (default: True).
 - **enable_rate_limiting**: ```bool``` - Enable or disable rate limiting (default: True).

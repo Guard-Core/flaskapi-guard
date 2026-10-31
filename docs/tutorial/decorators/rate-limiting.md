@@ -21,8 +21,10 @@ Apply custom rate limits to specific routes:
 ----------------------------
 
 ```python
-from flaskapi_guard import SecurityDecorator
+from flaskapi_guard import SecurityConfig, SecurityDecorator
 
+# geo_rate_limit needs a geo source on the config
+config = SecurityConfig(ipinfo_token="your_ipinfo_token_here")
 guard_deco = SecurityDecorator(config)
 
 
@@ -37,7 +39,7 @@ def limited_endpoint():
 
 ```python
 # Global rate limit: 100 requests/hour
-config = SecurityConfig(rate_limit_requests=100, rate_limit_window=3600)
+config = SecurityConfig(rate_limit=100, rate_limit_window=3600)
 
 
 @app.route("/api/public")

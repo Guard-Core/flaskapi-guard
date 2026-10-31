@@ -18,7 +18,7 @@ It is a direct port of [FastAPI Guard](https://github.com/Guard-Core/fastapi-gua
 
 - **PyPI Package**: `flaskapi_guard`
 - **Import Name**: `flaskapi_guard`
-- **Python Support**: 3.10, 3.11, 3.12, 3.13
+- **Python Support**: 3.10, 3.11, 3.12, 3.13, 3.14, 3.15
 - **Package Manager**: uv
 - **Build System**: Docker + Make
 
@@ -48,7 +48,7 @@ Because Flask is synchronous, this adapter imports the unasync-generated sync mi
 
 1. Handle passthrough/bypass cases
 2. Resolve route config and client IP
-3. Execute the security check pipeline (17 checks)
+3. Execute the security check pipeline (up to 18 checks)
 4. Process behavioral usage rules
 5. If any check fails, return an error response (short-circuits the request)
 
@@ -122,7 +122,7 @@ guard = FlaskAPIGuard(app, config=config)
 ### Testing
 
 - `make test` - Run tests in Docker (Python 3.10)
-- `make test-all` - Test all Python versions (3.10-3.13)
+- `make test-all` - Test all Python versions (3.10-3.15)
 - `make test-3.12` - Test specific Python version
 - `make local-test` - Run tests locally with uv
 
@@ -157,7 +157,7 @@ guard = FlaskAPIGuard(app, config=config)
 
 Environment variables:
 
-- `PYTHON_VERSION` - Python version (3.10-3.13)
+- `PYTHON_VERSION` - Python version (3.10-3.15)
 - `REDIS_URL` - Redis connection string
 - `REDIS_PREFIX` - Key prefix for Redis
 - `IPINFO_TOKEN` - IPInfo API token
@@ -195,7 +195,7 @@ flaskapi-guard/
 
 - **pyproject.toml** - Project metadata and dependencies; tool configurations for ruff, mypy, pytest, vulture, bandit, radon, xenon, deptry
 - **uv.lock** - Locked dependency versions, updated with `make lock`
-- **compose.yml / Dockerfile** - Multi-version Python support (3.10-3.13) and a Redis service for testing
+- **compose.yml / Dockerfile** - Multi-version Python support (3.10-3.15) and a Redis service for testing
 - **.pre-commit-config.yaml** - ruff format, ruff check, mypy, vulture, bandit, safety, radon, xenon, deptry
 
 ## Technology Stack

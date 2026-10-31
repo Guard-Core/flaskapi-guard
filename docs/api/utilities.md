@@ -88,7 +88,7 @@ check_ip_country
 
 ```python
 def check_ip_country(
-    request: str | Request, config: SecurityConfig, ipinfo_db: IPInfoManager
+    request: str | Request, config: SecurityConfig, geo_ip_handler: GeoIPHandler
 ) -> bool:
     """
     Check if IP is from a blocked country.
@@ -100,19 +100,19 @@ is_ip_allowed
 
 ```python
 def is_ip_allowed(
-    ip: str, config: SecurityConfig, ipinfo_db: IPInfoManager | None = None
+    ip: str, config: SecurityConfig, geo_ip_handler: GeoIPHandler | None = None
 ) -> bool:
     """
     Check if IP address is allowed.
     """
 ```
 
-The `ipinfo_db` parameter is now properly optional - it's only needed when country filtering is configured. If it's not provided when country filtering is configured, the function will work correctly but won't apply country filtering rules.
+The `geo_ip_handler` parameter is now properly optional - it's only needed when country filtering is configured. If it's not provided when country filtering is configured, the function will work correctly but won't apply country filtering rules.
 
 This function intelligently handles:
 
 - Whitelist/blacklist checking
-- Country filtering (only when IPInfoManager is provided)
+- Country filtering (only when a geo handler is provided)
 - Cloud provider detection (only when cloud blocking is configured)
 
 This selective processing aligns with FlaskAPI Guard's smart resource loading to optimize performance.
@@ -125,7 +125,7 @@ def detect_penetration_attempt(
     request: Request,
     config: SecurityConfig | None = None,
     route_config: RouteConfig | None = None,
-) -> DetectionResult
+) -> DetectionResult: ...
 ```
 
 Detect potential penetration attempts in the request using the Detection Engine.
@@ -142,7 +142,7 @@ Returns a `DetectionResult` dataclass with the following fields:
 
 - `is_threat` (`bool`): `True` if a potential attack is detected, `False` otherwise
 - `trigger_info` (`str`): Human-readable details about what triggered the detection, or an empty string if no attack was detected
-- `threat_categories` (`list[str]`): Distinct categories matched on this request (e.g. `"sql_injection"`, `"xss"`, `"path_traversal"`); empty when `is_threat` is `False`
+- `threat_categories` (`list[str]`): Distinct categories matched on this request (e.g. `"sqli"`, `"xss"`, `"path_traversal"`); empty when `is_threat` is `False`
 - `threat_scores` (`dict[str, float]`): Highest score observed per category in `threat_categories`
 
 The Detection Engine provides:
@@ -205,11 +205,16 @@ Usage Examples
 --------------
 
 ```python
+from flask import request
+from flaskapi_guard import FlaskGuardRequest
 from guard_core.sync.utils import (
     setup_custom_logging,
     log_activity,
     detect_penetration_attempt,
 )
+
+# The utilities take the guard-core request protocol, so wrap the Flask request
+guard_request = FlaskGuardRequest(request)
 
 # Setup logging (synchronous function)
 # Console only
@@ -219,15 +224,15 @@ logger = setup_custom_logging()  # or setup_custom_logging(None)
 logger = setup_custom_logging("security.log")
 
 # Log regular request
-log_activity(request, logger)
+log_activity(guard_request, logger)
 
 # Log suspicious activity
 log_activity(
-    request, logger, log_type="suspicious", reason="Suspicious pattern detected"
+    guard_request, logger, log_type="suspicious", reason="Suspicious pattern detected"
 )
 
 # Check for penetration attempts
-result = detect_penetration_attempt(request)
+result = detect_penetration_attempt(guard_request, config)
 if result.is_threat:
     logger.warning(f"Attack detected: {result.trigger_info}")
 ```

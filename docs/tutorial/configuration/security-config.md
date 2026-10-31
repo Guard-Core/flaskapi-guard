@@ -80,7 +80,7 @@ Redis Settings
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enable_redis` | bool | True | Enable Redis for distributed state management |
+| `enable_redis` | bool | False | Enable Redis for distributed state management. Left unset, Redis is on exactly when a Redis connection field (`redis_url`, `redis_prefix` and the other `redis_*` settings) is set explicitly; an explicit `enable_redis` always wins |
 | `redis_url` | str \| None | "redis://localhost:6379" | Redis connection URL |
 | `redis_prefix` | str | "guard_core:" | Prefix for Redis keys to avoid collisions |
 
@@ -89,7 +89,7 @@ Rate Limiting Settings
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `rate_limit` | int | 10 | Maximum requests per rate_limit_window |
+| `rate_limit` | int | 120 | Maximum requests per rate_limit_window |
 | `rate_limit_window` | int | 60 | Rate limiting time window in seconds |
 | `endpoint_rate_limits` | dict[str, tuple[int, int]] | {} | Per-endpoint rate limits {endpoint: (requests, window)} |
 
@@ -114,10 +114,10 @@ Cloud Provider Settings
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `block_cloud_providers` | set[str] \| None | None | Cloud providers to block (valid: "AWS", "GCP", "Azure") |
+| `block_cloud_providers` | set[str] \| None | None | Cloud providers to block, matched case-insensitively (valid: "AWS", "Azure", "DigitalOcean", "GCP", "Linode", "Vultr"; an unknown name raises a validation error) |
 | `cloud_ip_refresh_interval` | int | 3600 | Interval in seconds between cloud IP range refreshes (60-86400) |
-| `ipinfo_token` | str \| None | None | IPInfo API token for geolocation (**deprecated** - use `geo_ip_handler` instead) |
-| `ipinfo_db_path` | Path \| None | Path("data/ipinfo/country_asn.mmdb") | Path to IPInfo database (**deprecated** - use `geo_ip_handler` instead) |
+| `ipinfo_token` | str \| None | None | IPInfo API token for geolocation. When country rules are set and `geo_ip_handler` is `None`, guard-core builds an `IPInfoManager` from it |
+| `ipinfo_db_path` | Path \| None | Path("data/ipinfo/country_asn.mmdb") | Path to the IPInfo database that the built `IPInfoManager` uses |
 
 Security Headers Settings
 ------------------------
@@ -146,9 +146,9 @@ The following additional security headers are now included by default:
 
 - `X-Permitted-Cross-Domain-Policies: none`
 - `X-Download-Options: noopen`
-- `Cross-Origin-Embedder-Policy: require-corp`
+- `Cross-Origin-Embedder-Policy` is not sent unless you set `cross_origin_embedder_policy`
 - `Cross-Origin-Opener-Policy: same-origin`
-- `Cross-Origin-Resource-Policy: same-origin`
+- `Cross-Origin-Resource-Policy: same-site`
 
 Security Headers Sub-fields
 ----------------------------
@@ -291,16 +291,16 @@ ___
 Model Serialization
 -------------------
 
-All models support standard Pydantic v2 serialization:
+All models support standard Pydantic v2 serialization. `SecurityConfig` holds a read-only default in `threat_ban_config`, so dump it with `exclude_unset=True` (a full `model_dump_json()` and `model_json_schema()` raise `PydanticSerializationError` and `PydanticInvalidForJsonSchema`), and read its field metadata from `model_fields`:
 
 ```python
 config_dict = config.model_dump(exclude_unset=True)
-config_json = config.model_dump_json(indent=2)
+config_json = config.model_dump_json(indent=2, exclude_unset=True)
 
 config = SecurityConfig.model_validate(config_dict)
 config = SecurityConfig.model_validate_json(config_json)
 
-schema = SecurityConfig.model_json_schema()
+fields = SecurityConfig.model_fields
 ```
 
 ___

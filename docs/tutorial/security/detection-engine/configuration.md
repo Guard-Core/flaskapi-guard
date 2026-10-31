@@ -19,7 +19,7 @@ config = SecurityConfig(
     # Enable/disable penetration detection
     enable_penetration_detection=True,  # Default: True
     # Auto-ban settings for suspicious activity
-    auto_ban_threshold=5,  # Ban after N suspicious requests
+    auto_ban_threshold=10,  # Ban after N suspicious requests (default: 10)
     auto_ban_duration=3600,  # Ban duration in seconds (1 hour)
 )
 ```
@@ -93,7 +93,7 @@ config = SecurityConfig(
     agent_enable_metrics=True,
     # Logging
     custom_log_file="security.log",
-    log_level="WARNING",
+    log_suspicious_level="WARNING",
 )
 
 FlaskAPIGuard(app, config=config)
@@ -157,7 +157,7 @@ dev_config = SecurityConfig(
     # Full monitoring
     detection_monitor_history_size=5000,  # Large history
     # Detailed logging
-    log_level="DEBUG",
+    log_suspicious_level="DEBUG",
     custom_log_file="security-debug.log",
 )
 ```
@@ -168,7 +168,7 @@ dev_config = SecurityConfig(
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| `detection_compiler_timeout` | float | 2.0 | 0.1-30.0 | Maximum seconds for pattern execution |
+| `detection_compiler_timeout` | float | 2.0 | 0.1-10.0 | Maximum seconds for pattern execution |
 
 **Usage Guidelines:**
 
@@ -193,14 +193,14 @@ dev_config = SecurityConfig(
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| `detection_semantic_threshold` | float | 0.7 | 0.0-1.0 | Minimum score to consider threat |
+| `detection_semantic_threshold` | float | 0.7 | 0.0-1.0 | Score the semantic analyzer must exceed for a finding |
 
 **Threshold Guidelines:**
 
 - 0.0-0.3: Very sensitive, many false positives
 - 0.4-0.6: Sensitive, catches more attacks
 - 0.7-0.8: Balanced (recommended)
-- 0.9-1.0: Very strict, may miss obfuscated attacks
+- 0.9-1.0: Very strict, may miss obfuscated attacks (1.0 produces no semantic finding) (1.0 produces no semantic finding)
 
 ### Performance Monitoring Settings
 
@@ -241,12 +241,12 @@ print(f"Components active: {status}")
 
 ## Configuration Validation
 
-The Detection Engine validates configuration on startup:
+`SecurityConfig` validates every detection field against its range when it is created:
 
 ```python
 try:
     config = SecurityConfig(
-        detection_compiler_timeout=0.05  # Too low, will be adjusted
+        detection_compiler_timeout=0.05  # Below the 0.1 minimum, rejected
     )
 except ValueError as e:
     print(f"Configuration error: {e}")
@@ -254,24 +254,36 @@ except ValueError as e:
 
 ## Environment Variables
 
-You can also configure the detection engine using environment variables:
+    `SecurityConfig` does not read environment variables. To configure the detection engine from the environment, read the values in your own code and pass them to the config:
 
-```bash
-# Core settings
-FLASKAPI_GUARD_ENABLE_PENETRATION_DETECTION=true
-FLASKAPI_GUARD_AUTO_BAN_THRESHOLD=5
+    ```python
+    import os
 
-# Detection engine
-FLASKAPI_GUARD_DETECTION_COMPILER_TIMEOUT=2.0
-FLASKAPI_GUARD_DETECTION_MAX_CONTENT_LENGTH=10000
-FLASKAPI_GUARD_DETECTION_SEMANTIC_THRESHOLD=0.7
+    config = SecurityConfig(
+        enable_penetration_detection=os.environ.get("ENABLE_PENETRATION_DETECTION", "true")
+        == "true",
+        auto_ban_threshold=int(os.environ.get("AUTO_BAN_THRESHOLD", "10")),
+        # Detection engine
+        detection_compiler_timeout=float(
+            os.environ.get("DETECTION_COMPILER_TIMEOUT", "2.0")
+        ),
+        detection_max_content_length=int(
+            os.environ.get("DETECTION_MAX_CONTENT_LENGTH", "10000")
+        ),
+        detection_semantic_threshold=float(
+            os.environ.get("DETECTION_SEMANTIC_THRESHOLD", "0.7")
+        ),
+        # Performance monitoring
+        detection_anomaly_threshold=float(
+            os.environ.get("DETECTION_ANOMALY_THRESHOLD", "3.0")
+        ),
+        detection_slow_pattern_threshold=float(
+            os.environ.get("DETECTION_SLOW_PATTERN_THRESHOLD", "0.1")
+        ),
+    )
+    ```
 
-# Performance monitoring
-FLASKAPI_GUARD_DETECTION_ANOMALY_THRESHOLD=3.0
-FLASKAPI_GUARD_DETECTION_SLOW_PATTERN_THRESHOLD=0.1
-```
-
-## Monitoring Configuration Effectiveness
+    ## Monitoring Configuration Effectiveness
 
 ### Check Performance Impact
 
@@ -280,7 +292,7 @@ FLASKAPI_GUARD_DETECTION_SLOW_PATTERN_THRESHOLD=0.1
 stats = patterns.get_performance_stats()
 
 # Analyze configuration effectiveness
-if stats["summary"]["average_time"] > 0.05:
+if stats["summary"]["avg_execution_time"] > 0.05:
     print("Consider optimizing configuration for better performance")
 
 if stats["summary"]["timeout_rate"] > 0.01:
@@ -334,7 +346,7 @@ config.detection_max_content_length = 5000
 config.detection_compiler_timeout = 3.0
 
 # Monitor specific patterns
-slow_patterns = monitor.get_slow_patterns(threshold=0.05)
+slow_patterns = patterns.get_performance_stats()["slow_patterns"]
 ```
 
 ### Memory Usage
@@ -344,8 +356,8 @@ slow_patterns = monitor.get_slow_patterns(threshold=0.05)
 config.detection_monitor_history_size = 500
 config.detection_max_tracked_patterns = 500
 
-# Clear old metrics periodically
-monitor.clear_old_metrics()
+# The monitor keeps a bounded history (detection_monitor_history_size),
+# so recorded metrics need no periodic cleanup
 ```
 
 ## Next Steps

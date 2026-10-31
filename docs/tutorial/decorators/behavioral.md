@@ -21,8 +21,10 @@ Monitor how frequently individual IPs access specific endpoints:
 ----------------------
 
 ```python
-from flaskapi_guard import SecurityDecorator
+from flaskapi_guard import SecurityConfig, SecurityDecorator
 
+# return_monitor reads response bodies, so response body scanning must be on
+config = SecurityConfig(behavior_scan_response_body=True)
 guard_deco = SecurityDecorator(config)
 
 

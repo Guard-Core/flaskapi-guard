@@ -215,30 +215,18 @@ def set_decorator_handler(
     """
 ```
 
-configure_cors
---------------
+CORS configuration
+------------------
+
+`FlaskAPIGuard` has no `configure_cors()` method. CORS is configured only through the `cors_*` fields of `SecurityConfig`, and the extension answers preflight requests and adds the CORS headers itself:
 
 ```python
-@staticmethod
-def configure_cors(app: Flask, config: SecurityConfig) -> bool:
-    """
-    Configure CORS handling based on SecurityConfig.
-
-    This is a convenience method for setting up CORS.
-
-    Args:
-        app: Flask application instance
-        config: Security configuration with CORS settings
-
-    Returns:
-        bool: True if CORS was configured, False otherwise
-
-    Example:
-        ```python
-        FlaskAPIGuard.configure_cors(app, config)
-        FlaskAPIGuard(app, config=config)
-        ```
-    """
+config = SecurityConfig(
+    enable_cors=True,
+    cors_allow_origins=["https://example.com"],
+    cors_allow_methods=["GET", "POST"],
+)
+FlaskAPIGuard(app, config=config)
 ```
 
 ___
@@ -329,7 +317,7 @@ from flaskapi_guard import SecurityConfig
 
 app = Flask(__name__)
 
-config = SecurityConfig(rate_limit=100, enable_https=True, enable_cors=True)
+config = SecurityConfig(rate_limit=100, enforce_https=True, enable_cors=True)
 
 FlaskAPIGuard(app, config=config)
 ```

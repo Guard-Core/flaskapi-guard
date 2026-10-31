@@ -10,7 +10,7 @@ Core Architecture (Internal)
 =============================
 
 !!! warning "Internal Implementation Details"
-    The `flaskapi_guard/core/` modules documented here are **internal implementation details** and should NOT be imported directly in user code. Always use the public API from `flaskapi_guard.extension`, `flaskapi_guard.models`, and `flaskapi_guard.decorators`.
+    The `guard_core/sync/core/` modules documented here are **internal implementation details** and should NOT be imported directly in user code. Always use the public API from `flaskapi_guard` (`FlaskAPIGuard`, `SecurityConfig`, `SecurityDecorator`).
 
     This documentation is provided for contributors and advanced users who want to understand the internal architecture.
 
@@ -34,7 +34,7 @@ Module Overview
 ----------------
 
 ```text
-flaskapi_guard/core/
+guard_core/sync/core/
 ├── checks/              # Security check pipeline (Chain of Responsibility)
 ├── events/              # Event bus and metrics collection
 ├── initialization/      # Handler initialization logic
@@ -47,7 +47,7 @@ flaskapi_guard/core/
 
 ___
 
-Module: flaskapi_guard/core/checks/
+Module: guard_core/sync/core/checks/
 --------------------------
 
 **Purpose**: Security check implementations using the Chain of Responsibility pattern
@@ -62,7 +62,7 @@ SecurityCheck (Base Class)
 
 Abstract base class for all security checks.
 
-**Location**: `flaskapi_guard/core/checks/base.py`
+**Location**: `guard_core/sync/core/checks/base.py`
 
 **Key Methods**:
 
@@ -86,7 +86,7 @@ SecurityCheckPipeline
 
 Orchestrates the execution of multiple security checks in sequence.
 
-**Location**: `flaskapi_guard/core/checks/pipeline.py`
+**Location**: `guard_core/sync/core/checks/pipeline.py`
 
 **Key Methods**:
 
@@ -115,30 +115,31 @@ class SecurityCheckPipeline:
 Check Implementations
 ---------------------
 
-**Location**: `flaskapi_guard/core/checks/implementations/`
+**Location**: `guard_core/sync/core/checks/implementations/`
 
 Execution Order
 ---------------
 
-Checks execute in this order (defined in `extension.py._build_security_pipeline()`):
+Checks execute in this order (defined in guard-core's `DEFAULT_CHECK_CLASSES`, `guard_core/sync/core/checks/factory.py`):
 
 1. **RouteConfigCheck** - Extract route config and client IP
 2. **EmergencyModeCheck** - Emergency mode (highest priority)
 3. **HttpsEnforcementCheck** - HTTPS enforcement (can redirect)
 4. **RequestLoggingCheck** - Log request
 5. **RequestSizeContentCheck** - Validate size/content
-6. **RequiredHeadersCheck** - Check required headers
-7. **AuthenticationCheck** - Verify authentication
-8. **ReferrerCheck** - Check referrer
-9. **CustomValidatorsCheck** - Custom validators
-10. **TimeWindowCheck** - Time-based access
-11. **CloudIpRefreshCheck** - Periodic maintenance
-12. **IpSecurityCheck** - IP whitelist/blacklist
-13. **CloudProviderCheck** - Cloud provider blocking
-14. **UserAgentCheck** - User agent filtering
-15. **RateLimitCheck** - Rate limiting
-16. **SuspiciousActivityCheck** - Threat detection
-17. **CustomRequestCheck** - Custom checks
+6. **CloudIpRefreshCheck** - Periodic maintenance
+7. **IpSecurityCheck** - IP whitelist/blacklist
+8. **CloudProviderCheck** - Cloud provider blocking
+9. **UserAgentCheck** - User agent filtering
+10. **CorsPreflightCheck** - CORS preflight answers
+11. **RateLimitCheck** - Rate limiting
+12. **RequiredHeadersCheck** - Check required headers
+13. **AuthenticationCheck** - Verify authentication
+14. **ReferrerCheck** - Check referrer
+15. **CustomValidatorsCheck** - Custom validators
+16. **TimeWindowCheck** - Time-based access
+17. **SuspiciousActivityCheck** - Threat detection
+18. **CustomRequestCheck** - Custom checks
 
 Implementation Details
 ----------------------
@@ -172,7 +173,7 @@ class ExampleCheck(SecurityCheck):
 Helper Functions
 ----------------
 
-**Location**: `flaskapi_guard/core/checks/helpers.py`
+**Location**: `guard_core/sync/core/checks/helpers.py`
 
 Common utilities shared across check implementations:
 
@@ -183,7 +184,7 @@ Common utilities shared across check implementations:
 
 ___
 
-Module: flaskapi_guard/core/events/
+Module: guard_core/sync/core/events/
 --------------------------
 
 **Purpose**: Event system for extension actions and metrics collection
@@ -193,13 +194,13 @@ SecurityEventBus
 
 Centralized event dispatching for security-related events.
 
-**Location**: `flaskapi_guard/core/events/extension_events.py`
+**Location**: `guard_core/sync/core/events/middleware_events.py`
 
 **Key Methods**:
 
 ```python
 class SecurityEventBus:
-    def send_extension_event(
+    def send_middleware_event(
         self,
         event_type: str,
         request: Request,
@@ -220,10 +221,12 @@ class SecurityEventBus:
         self,
         request: Request,
         client_ip: str,
-        cloud_providers: list[str],
+        cloud_providers_to_check: list[str],
         route_config: RouteConfig | None,
-        cloud_handler: Any,
+        cloud_handler: CloudManager,
         passive_mode: bool,
+        cloud_details: tuple[str, str] | None = None,
+        attribution: dict[str, object] | None = None,
     ) -> None:
         """Send cloud provider detection events."""
         ...
@@ -236,14 +239,14 @@ MetricsCollector
 
 Collects and reports request metrics.
 
-**Location**: `flaskapi_guard/core/events/metrics.py`
+**Location**: `guard_core/sync/core/events/metrics.py`
 
 **Key Methods**:
 
 ```python
 class MetricsCollector:
-    def send_security_metric(
-        self, metric_name: str, value: float, tags: dict[str, str] | None = None
+    def send_metric(
+        self, metric_type: str, value: float, tags: dict[str, str] | None = None
     ) -> None:
         """Send individual security metric."""
         ...
@@ -251,9 +254,8 @@ class MetricsCollector:
     def collect_request_metrics(
         self,
         request: Request,
-        response: Response,
         response_time: float,
-        client_ip: str,
+        status_code: int,
     ) -> None:
         """Collect comprehensive request metrics."""
         ...
@@ -261,7 +263,7 @@ class MetricsCollector:
 
 ___
 
-Module: flaskapi_guard/core/initialization/
+Module: guard_core/sync/core/initialization/
 ----------------------------------
 
 **Purpose**: Centralized handler initialization logic
@@ -271,7 +273,7 @@ HandlerInitializer
 
 Manages initialization of Redis, Agent, and other handlers.
 
-**Location**: `flaskapi_guard/core/initialization/handler_initializer.py`
+**Location**: `guard_core/sync/core/initialization/handler_initializer.py`
 
 **Key Methods**:
 
@@ -294,11 +296,11 @@ class HandlerInitializer:
         ...
 ```
 
-**Usage**: Called from `FlaskAPIGuard.initialize()` to set up all handlers.
+**Usage**: Called from `FlaskAPIGuard._initialize_handlers()` on the first request to set up all handlers.
 
 ___
 
-Module: flaskapi_guard/core/responses/
+Module: guard_core/sync/core/responses/
 -----------------------------
 
 **Purpose**: Response creation and processing
@@ -308,7 +310,7 @@ ErrorResponseFactory
 
 Centralized response creation, error handling, and header application.
 
-**Location**: `flaskapi_guard/core/responses/factory.py`
+**Location**: `guard_core/sync/core/responses/factory.py`
 
 **Key Methods**:
 
@@ -347,11 +349,11 @@ ResponseContext
 
 Dependency injection container for response factory.
 
-**Location**: `flaskapi_guard/core/responses/context.py`
+**Location**: `guard_core/sync/core/responses/context.py`
 
 ___
 
-Module: flaskapi_guard/core/routing/
+Module: guard_core/sync/core/routing/
 -------------------------
 
 **Purpose**: Route configuration and decorator resolution
@@ -361,7 +363,7 @@ RouteConfigResolver
 
 Resolves route-specific security configuration from decorators.
 
-**Location**: `flaskapi_guard/core/routing/resolver.py`
+**Location**: `guard_core/sync/core/routing/resolver.py`
 
 **Key Methods**:
 
@@ -391,11 +393,11 @@ RoutingContext
 
 Dependency injection container for route resolver.
 
-**Location**: `flaskapi_guard/core/routing/context.py`
+**Location**: `guard_core/sync/core/routing/context.py`
 
 ___
 
-Module: flaskapi_guard/core/validation/
+Module: guard_core/sync/core/validation/
 -----------------------------
 
 **Purpose**: Request validation utilities
@@ -405,7 +407,7 @@ RequestValidator
 
 Provides request validation logic for HTTPS, proxies, time windows, and path exclusions.
 
-**Location**: `flaskapi_guard/core/validation/validator.py`
+**Location**: `guard_core/sync/core/validation/validator.py`
 
 **Key Methods**:
 
@@ -415,7 +417,7 @@ class RequestValidator:
         """Check if request uses HTTPS."""
         ...
 
-    def is_trusted_proxy(self, client_ip: str) -> bool:
+    def is_trusted_proxy(self, connecting_ip: str) -> bool:
         """Validate if IP is a trusted proxy."""
         ...
 
@@ -423,8 +425,8 @@ class RequestValidator:
         """Validate time window restrictions."""
         ...
 
-    def is_path_excluded(self, path: str) -> bool:
-        """Check if path is excluded from security checks."""
+    def is_path_excluded(self, request: Request) -> bool:
+        """Check if the request path is excluded from security checks."""
         ...
 ```
 
@@ -433,11 +435,11 @@ ValidationContext
 
 Dependency injection container for validator.
 
-**Location**: `flaskapi_guard/core/validation/context.py`
+**Location**: `guard_core/sync/core/validation/context.py`
 
 ___
 
-Module: flaskapi_guard/core/bypass/
+Module: guard_core/sync/core/bypass/
 --------------------------
 
 **Purpose**: Handle security bypass cases
@@ -447,13 +449,15 @@ BypassHandler
 
 Handles passthrough cases and decorator-based security bypasses.
 
-**Location**: `flaskapi_guard/core/bypass/handler.py`
+**Location**: `guard_core/sync/core/bypass/handler.py`
 
 **Key Methods**:
 
 ```python
 class BypassHandler:
-    def handle_passthrough(self, request: Request) -> Response | None:
+    def handle_passthrough(
+        self, request: Request, call_next: Callable[[Request], Response]
+    ) -> Response | None:
         """Handle cases that should pass through immediately."""
         ...
 
@@ -478,11 +482,11 @@ BypassContext
 
 Dependency injection container for bypass handler.
 
-**Location**: `flaskapi_guard/core/bypass/context.py`
+**Location**: `guard_core/sync/core/bypass/context.py`
 
 ___
 
-Module: flaskapi_guard/core/behavioral/
+Module: guard_core/sync/core/behavioral/
 -----------------------------
 
 **Purpose**: Behavioral rule processing
@@ -492,7 +496,7 @@ BehavioralProcessor
 
 Processes decorator-based behavioral rules for usage and return monitoring.
 
-**Location**: `flaskapi_guard/core/behavioral/processor.py`
+**Location**: `guard_core/sync/core/behavioral/processor.py`
 
 **Key Methods**:
 
@@ -524,7 +528,7 @@ BehavioralContext
 
 Dependency injection container for behavioral processor.
 
-**Location**: `flaskapi_guard/core/behavioral/context.py`
+**Location**: `guard_core/sync/core/behavioral/context.py`
 
 ___
 
@@ -560,27 +564,24 @@ To add a custom security check:
 
 1. Create Implementation
 
-**File**: `flaskapi_guard/core/checks/implementations/my_custom_check.py`
+**File**: `guard_core/sync/core/checks/implementations/my_custom_check.py`
 
 ```python
-from flask import Request, Response, g
+from flask import Request, Response
 from guard_core.sync.core.checks.base import SecurityCheck
 
 
 class MyCustomCheck(SecurityCheck):
     """Description of what this check does."""
 
-    check_name = "my_custom_check"
-
-    def __init__(self, extension: "FlaskAPIGuard"):
-        self.extension = extension
-        self.config = extension.config
-        self.logger = extension.logger
+    @property
+    def check_name(self) -> str:
+        return "my_custom_check"
 
     def check(self, request: Request) -> Response | None:
-        # Get context from flask.g
-        client_ip = g.client_ip
-        route_config = g.route_config
+        # Get context from request.state (set by RouteConfigCheck)
+        client_ip = request.state.client_ip
+        route_config = getattr(request.state, "route_config", None)
 
         # Your check logic
         if condition_fails:
@@ -595,20 +596,19 @@ class MyCustomCheck(SecurityCheck):
 **File**: `flaskapi_guard/extension.py` in `_build_security_pipeline()` method
 
 ```python
+from guard_core.sync.core.checks import build_default_pipeline
 from guard_core.sync.core.checks.implementations.my_custom_check import MyCustomCheck
 
 
 def _build_security_pipeline(self) -> None:
-    checks = [
-        # ... existing checks
-        MyCustomCheck(self),  # Add your check
-    ]
-    self.security_pipeline = SecurityCheckPipeline(checks)
+    pipeline = build_default_pipeline(self)
+    pipeline.add_check(MyCustomCheck(self))
+    self.security_pipeline = pipeline
 ```
 
 3. Export (Optional)
 
-**File**: `flaskapi_guard/core/checks/__init__.py`
+**File**: `guard_core/sync/core/checks/__init__.py`
 
 ```python
 from guard_core.sync.core.checks.implementations.my_custom_check import MyCustomCheck

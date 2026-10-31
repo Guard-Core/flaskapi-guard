@@ -40,7 +40,7 @@ Available Protocols
 GeoIPHandler Protocol
 ---------------------
 
-The `GeoIPHandler` protocol defines the interface for any geographical IP handler:
+The `GeoIPHandler` protocol (exported by `flaskapi_guard` as an alias of `guard_core.sync.protocols.geo_ip_protocol.SyncGeoIPHandler`) defines the interface for any geographical IP handler:
 
 ```python
 @runtime_checkable
@@ -54,7 +54,13 @@ class GeoIPHandler(Protocol):
 
     def initialize_redis(self, redis_handler: RedisHandlerProtocol) -> None: ...
 
+    def initialize_agent(self, agent_handler: SyncAgentHandlerProtocol) -> None: ...
+
     def get_country(self, ip: str) -> str | None: ...
+
+    def refresh(self) -> None: ...
+
+    def close(self) -> None: ...
 ```
 
 Method Details
@@ -63,27 +69,112 @@ Method Details
 - `is_initialized`: Should return whether the handler is ready to use
 - `initialize()`: Should set up the handler (load databases, connect to APIs, etc.)
 - `initialize_redis()`: Should store the redis handler for optional caching
+- `initialize_agent()`: Should store the agent handler so dataset-refresh failures can be reported
 - `get_country()`: Should return the ISO 3166-1 alpha-2 country code for the IP
+- `refresh()`: Should reload the dataset from its source (periodic update)
+- `close()`: Should release the dataset and file handles
 
 RedisHandlerProtocol
 --------------------
 
-**IMPORTANT**: Users do NOT need to implement this protocol. It exists purely for internal use to break dependency cycles and define what the Redis handler must support for the custom GeoIP handlers.
+**IMPORTANT**: Users do NOT need to implement this protocol. It exists purely for internal use to break dependency cycles and define what the Redis handler must support for the custom GeoIP handlers. `flaskapi_guard` exports it as an alias of `guard_core.sync.protocols.redis_protocol.SyncRedisHandlerProtocol`, and the listing below is that protocol in full.
 
 ```python
 @runtime_checkable
 class RedisHandlerProtocol(Protocol):
-    """Protocol for Redis handlers."""
+    def get_key(self, namespace: str, key: str) -> str | None: ...
 
-    def get_key(self, namespace: str, key: str) -> Any: ...
+    def get_many(self, pairs: Sequence[tuple[str, str]]) -> list[str | None]: ...
 
     def set_key(
-        self, namespace: str, key: str, value: Any, ttl: int | None = None
+        self, namespace: str, key: str, value: RedisValue, ttl: int | None = None
     ) -> bool | None: ...
 
-    def get_connection(self) -> ContextManager[Redis]: ...
+    def set_key_if_absent(
+        self, namespace: str, key: str, value: RedisValue, ttl: int | None = None
+    ) -> bool: ...
+
+    def incr(self, namespace: str, key: str, ttl: int | None = None) -> int | None: ...
+
+    def write_atomically(
+        self,
+        *,
+        sets: Sequence[tuple[str, str, RedisValue, int | None]] = (),
+        deletes: Sequence[tuple[str, str]] = (),
+        increment: tuple[str, str] | None = None,
+    ) -> None: ...
+
+    def delete(self, namespace: str, key: str) -> int | None: ...
+
+    def delete_pattern(self, pattern: str) -> int | None: ...
+
+    def keys(self, pattern: str) -> list[str] | None: ...
+
+    def write_ban_extending_only(
+        self,
+        namespace: str,
+        key: str,
+        expiry: str,
+        duration: int,
+        *,
+        version: tuple[str, str],
+        advance_version: bool = False,
+        rule_owned: bool = False,
+    ) -> float: ...
+
+    def owned_ban_members(self) -> list[str]: ...
+
+    def owned_ban_state(
+        self, namespace: str, key: str
+    ) -> tuple[float | None, float | None]: ...
+
+    def purge_owned_ban(self, member: str) -> int: ...
+
+    def disown_ban(self, namespace: str, key: str) -> None: ...
+
+    def record_sliding_window_hit(
+        self,
+        namespace: str,
+        key: str,
+        timestamp: float,
+        window_start: float,
+        ttl: int,
+        *,
+        index: tuple[str, int] | None = None,
+        index_refused: list[bool] | None = None,
+    ) -> int: ...
+
+    def count_sliding_window_hits(
+        self, namespace: str, key: str, window_start: float
+    ) -> int: ...
+
+    def sum_indexed_window_hits(
+        self, namespace: str, index_key: str, window_start: float
+    ) -> int: ...
+
+    def detection_correlation_keys(self, client_ip: str) -> list[str]: ...
+
+    def record_detection_strikes(
+        self,
+        client_ip: str,
+        categories: Sequence[str],
+        timestamp: float,
+        window_start: float,
+        ttl: int,
+        cap: int,
+    ) -> tuple[int, int, dict[str, int]]: ...
+
+    def read_detection_categories(
+        self, client_ip: str, window_start: float
+    ) -> list[str]: ...
+
+    def forget_detection_strikes(self, client_ip: str) -> None: ...
 
     def initialize(self) -> None: ...
+
+    def initialize_agent(self, agent_handler: SyncAgentHandlerProtocol) -> None: ...
+
+    def get_connection(self) -> ContextManager[Redis]: ...
 ```
 
 ___
@@ -115,6 +206,7 @@ Here's a complete example of a custom GeoIPHandler implementation that uses a di
 ```python
 from flaskapi_guard import GeoIPHandler
 from flaskapi_guard import RedisHandlerProtocol
+from guard_core.sync.protocols.agent_protocol import SyncAgentHandlerProtocol
 
 
 class CustomGeoIPHandler:
@@ -126,6 +218,7 @@ class CustomGeoIPHandler:
         self.db_path = db_path
         self.reader = None
         self.redis = None  # Will store the FlaskAPI Guard's Redis handler
+        self.agent = None  # Will store the agent handler
 
     @property
     def is_initialized(self) -> bool:
@@ -165,6 +258,10 @@ class CustomGeoIPHandler:
         self.redis = redis_handler  # Store the Redis handler provided by FlaskAPI Guard
         self.initialize()
 
+    def initialize_agent(self, agent_handler: SyncAgentHandlerProtocol) -> None:
+        """Keep the agent handler to report dataset-refresh failures"""
+        self.agent = agent_handler
+
     def get_country(self, ip: str) -> str | None:
         """Get country code from IP using Custom GeoIP database"""
         if not self.reader:
@@ -175,6 +272,14 @@ class CustomGeoIPHandler:
             return response.country.iso_code
         except Exception:
             return None
+
+    def refresh(self) -> None:
+        """Reload the database from disk"""
+        self.initialize()
+
+    def close(self) -> None:
+        """Release the database"""
+        self.reader = None
 ```
 
 ___

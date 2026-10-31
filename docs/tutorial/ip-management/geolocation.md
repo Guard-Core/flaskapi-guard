@@ -23,7 +23,13 @@ class GeoIPHandler(Protocol):
 
     def initialize_redis(self, redis_handler: "RedisManager") -> None: ...
 
+    def initialize_agent(self, agent_handler: "SyncAgentHandlerProtocol") -> None: ...
+
     def get_country(self, ip: str) -> str | None: ...
+
+    def refresh(self) -> None: ...
+
+    def close(self) -> None: ...
 ```
 
 It provides an implementation that uses the [ipinfo.io](https://ipinfo.io/signup) service:
@@ -49,10 +55,11 @@ Option 1: Using the built-in IPInfoHandler
 config = SecurityConfig(
     geo_ip_handler=IPInfoManager("your_ipinfo_token_here"),
     blocked_countries=["CN", "RU"],
-    whitelist_countries=["US", "CA"],
     block_cloud_providers={"AWS", "GCP"},
 )
 ```
+
+Use `whitelist_countries=["US", "CA"]` instead of `blocked_countries` to allow only those countries. A non-empty `whitelist_countries` is restrictive, so `blocked_countries` has no effect while it is set and guard-core warns about the combination.
 
 Option 2: Providing a custom geographical IP handler
 ----------------------------------------------------
@@ -76,7 +83,19 @@ class CustomGeoIPHandler:
         # your implementation
         ...
 
+    def initialize_agent(self, agent_handler: "SyncAgentHandlerProtocol") -> None:
+        # your implementation
+        ...
+
     def get_country(self, ip: str) -> str | None:
+        # your implementation
+        ...
+
+    def refresh(self) -> None:
+        # your implementation
+        ...
+
+    def close(self) -> None:
         # your implementation
         ...
 
@@ -84,7 +103,6 @@ class CustomGeoIPHandler:
 config = SecurityConfig(
     geo_ip_handler=CustomGeoIPHandler(),
     blocked_countries=["CN", "RU"],
-    whitelist_countries=["US", "CA"],
     block_cloud_providers={"AWS", "GCP"},
 )
 ```

@@ -52,7 +52,7 @@ Connection Management
 
 ```python
 # Get RedisManager instance from extension
-redis = app.extensions["flaskapi_guard"].redis_handler
+redis = app.extensions["flaskapi_guard"]["guard"].redis_handler
 
 # Manual connection handling example
 with redis.get_connection() as conn:

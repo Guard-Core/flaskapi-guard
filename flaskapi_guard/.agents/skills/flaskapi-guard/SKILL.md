@@ -5,7 +5,7 @@ description: FlaskAPI Guard, the Flask/WSGI security extension over guard-core. 
 
 # FlaskAPI Guard
 
-Security extension for Flask: IP filtering, rate limiting, signature-based attack-pattern detection, security headers, and route-level security decorators. Import package is `flaskapi_guard` (distribution name `flaskapi_guard`). Current as of flaskapi-guard 4.3.0 over guard-core 3.15+.
+Security extension for Flask: IP filtering, rate limiting, signature-based attack-pattern detection, security headers, and route-level security decorators. Import package is `flaskapi_guard` (distribution name `flaskapi_guard`). Current as of flaskapi-guard 4.4.0 over guard-core 5.0.0.
 
 FlaskAPI Guard is a thin adapter: all security logic (models, handlers, decorators, detection engine, protocols) lives in `guard_core`; this package only bridges Flask/WSGI to it through the unasync-generated `guard_core.sync` mirror. Everything is synchronous.
 
@@ -24,7 +24,7 @@ FlaskAPI Guard is a thin adapter: all security logic (models, handlers, decorato
 uv add flaskapi-guard          # or: pip install flaskapi-guard
 ```
 
-Requires Python 3.10-3.13 and `guard-core>=3.15.0` (installed automatically). `import flaskapi_guard` pulls the `guard_core.sync` mirror, not the async tree.
+Requires Python 3.10-3.15 and guard-core 5.0.0 or newer (installed automatically). `import flaskapi_guard` pulls the `guard_core.sync` mirror, not the async tree.
 
 ## Setup
 
@@ -79,7 +79,7 @@ Decorators stack top-down and each writes a per-route `RouteConfig` the extensio
 
 ## Footguns
 
-* **`enable_redis` defaults to `True`** with `redis_url="redis://localhost:6379"`. Without a reachable Redis, stateful checks fail; set `enable_redis=False` in no-Redis environments or point at a real instance.
+* **`enable_redis` is off unless a Redis connection field is set.** Since guard-core 5.0.0 Redis turns on exactly when `redis_url`, `redis_prefix` or another `redis_*` connection field is set explicitly (an explicit `enable_redis` always wins), and `enable_redis=True` alone uses `redis_url="redis://localhost:6379"`. With Redis on and no reachable server, stateful checks fail; point `redis_url` at a real instance or leave the Redis fields unset.
 * **Async callables are rejected under WSGI.** Any `async def` custom check, validator, or modifier raises `TypeError`; convert to a sync function.
 * **Decorator-only checks vanish without a decorator handler.** If the extension cannot see the registered route config (no `set_decorator_handler`), decorator-triggered checks are not built and their rules never fire; the checks are not silently enforced.
 * **Unknown bypass tokens warn and are dropped** (see [Route-Level Security Decorators](#route-level-security-decorators)); do not rely on arbitrary labels appearing in the bypassed-checks event payload.

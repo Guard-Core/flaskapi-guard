@@ -63,13 +63,12 @@ refresh
 -------
 
 ```python
-def refresh(self, providers: set[str] = _ALL_PROVIDERS, ttl: int = 3600):
+def refresh(self, providers: Collection[str] = _ALL_PROVIDERS):
     """
     Refresh IP ranges from cloud providers.
 
     Args:
-        providers: Set of provider names to refresh
-        ttl: Redis cache TTL in seconds (default: 3600)
+        providers: Provider names to refresh
     """
 ```
 

@@ -71,14 +71,15 @@ from flaskapi_guard import SecurityConfig
 
 # Security decorators
 from flaskapi_guard import SecurityDecorator, RouteConfig
-from flaskapi_guard import get_route_decorator_config
+from guard_core.sync.decorators.base import get_route_decorator_config
 
 # Handler classes and their pre-initialized instances
 from flaskapi_guard import CloudManager, cloud_handler
 from flaskapi_guard import IPBanManager, ip_ban_manager
 from flaskapi_guard import RateLimitManager, rate_limit_handler
 from flaskapi_guard import RedisManager, redis_handler
-from flaskapi_guard import SusPatternsManager, sus_patterns_handler
+from flaskapi_guard import sus_patterns_handler
+from guard_core.sync.handlers.suspatterns_handler import SusPatternsManager
 from flaskapi_guard import BehaviorTracker, BehaviorRule
 
 # Special case - requires parameters
@@ -114,20 +115,21 @@ The `SecurityConfig` class is the central configuration point:
 class SecurityConfig:
     def __init__(
         self,
-        geo_ip_handler: GeoIPHandler | None = None,
-        whitelist: list[str] | None = None,
-        blacklist: list[str] = [],
-        blocked_countries: list[str] = [],
-        whitelist_countries: list[str] = [],
+        geo_ip_handler: SyncGeoIPHandler | None = None,
+        whitelist: tuple[str, ...] | None = None,
+        blacklist: tuple[str, ...] = (),
+        blocked_countries: frozenset[str] = frozenset(),
+        whitelist_countries: frozenset[str] = frozenset(),
         blocked_user_agents: list[str] = [],
-        auto_ban_threshold: int = 5,
+        auto_ban_threshold: int = 10,
         auto_ban_duration: int = 3600,
-        rate_limit: int = 100,
+        rate_limit: int = 120,
         rate_limit_window: int = 60,
         enable_cors: bool = False,
         # ... other parameters
     ):
         # ... initialization
+        ...
 ```
 
 ___
@@ -144,7 +146,7 @@ FlaskAPI Guard uses a smart loading strategy to improve performance:
 This approach reduces startup time and memory usage when not all security features are needed.
 
 ```python
-# Conditional loading example from extension
+# Simplified sketch of the conditional loading in HandlerInitializer.initialize_redis_handlers()
 def initialize(self) -> None:
     if self.config.enable_redis and self.redis_handler:
         self.redis_handler.initialize()
@@ -172,9 +174,10 @@ SecurityDecorator Class
 The main decorator class combines all security capabilities:
 
 ```python
-from flaskapi_guard import SecurityDecorator
+from flaskapi_guard import SecurityConfig, SecurityDecorator
 
-config = SecurityConfig()
+# block_countries needs a geo source on the config
+config = SecurityConfig(ipinfo_token="your_ipinfo_token_here")
 guard_deco = SecurityDecorator(config)
 
 

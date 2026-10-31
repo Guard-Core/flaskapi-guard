@@ -214,7 +214,7 @@ FlaskAPI Guard uses the standard Flask extension pattern with `before_request`/`
 
 1. Handle passthrough/bypass cases
 2. Get route config and client IP
-3. Execute security check pipeline (17 checks)
+3. Execute security check pipeline (up to 18 checks)
 4. Process behavioral usage rules
 5. If any check fails, return an error response (short-circuits the request)
 
@@ -228,7 +228,7 @@ FlaskAPI Guard uses the standard Flask extension pattern with `before_request`/`
 
 ### Security Check Pipeline
 
-The pipeline uses a Chain of Responsibility pattern with 17 checks executed in order:
+The pipeline uses a Chain of Responsibility pattern with up to 18 checks executed in order, a check that the configuration can never trigger is not built:
 
 | Order | Check | Purpose |
 |-------|-------|---------|
@@ -237,18 +237,19 @@ The pipeline uses a Chain of Responsibility pattern with 17 checks executed in o
 | 3 | HTTPS enforcement | Redirect or reject non-HTTPS requests |
 | 4 | Request logging | Log incoming requests |
 | 5 | Size/content validation | Max request size, allowed content types |
-| 6 | Required headers | Verify presence of required headers |
-| 7 | Authentication | Verify auth requirements (API key, session) |
-| 8 | Referrer validation | Validate request referrer against allowlist |
-| 9 | Custom validators | Execute user-defined validator functions |
-| 10 | Time windows | Enforce time-based access restrictions |
-| 11 | Cloud IP refresh | Periodically refresh cloud provider IP ranges |
-| 12 | IP security | Whitelist/blacklist, country-based filtering |
-| 13 | Cloud provider blocking | Block requests from AWS/GCP/Azure IPs |
-| 14 | User agent filtering | Block specific user agents |
-| 15 | Rate limiting | Sliding window rate limits (per-IP, per-endpoint) |
-| 16 | Suspicious activity | Penetration attempt detection |
-| 17 | Custom request checks | Execute user-defined request check function |
+| 6 | Cloud IP refresh | Periodically refresh cloud provider IP ranges |
+| 7 | IP security | Whitelist/blacklist, country-based filtering |
+| 8 | Cloud provider blocking | Block requests from cloud provider IPs |
+| 9 | User agent filtering | Block specific user agents |
+| 10 | CORS preflight | Answer CORS preflight requests |
+| 11 | Rate limiting | Sliding window rate limits (per-IP, per-endpoint) |
+| 12 | Required headers | Verify presence of required headers |
+| 13 | Authentication | Verify auth requirements (API key, session) |
+| 14 | Referrer validation | Validate request referrer against allowlist |
+| 15 | Custom validators | Execute user-defined validator functions |
+| 16 | Time windows | Enforce time-based access restrictions |
+| 17 | Suspicious activity | Penetration attempt detection |
+| 18 | Custom request checks | Execute user-defined request check function |
 
 ___
 
@@ -366,7 +367,7 @@ config = SecurityConfig(
     # Security headers
     security_headers={
         "enabled": True,
-        "csp": "default-src 'self'; script-src 'self'",
+        "csp": {"default-src": ["'self'"], "script-src": ["'self'"]},
         "hsts": {"max_age": 31536000, "include_subdomains": True},
         "frame_options": "DENY",
         "content_type_options": "nosniff",

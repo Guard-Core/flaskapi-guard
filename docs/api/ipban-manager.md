@@ -57,7 +57,7 @@ def ban_ip(
     reason: str = "threshold_exceeded",
     *,
     grouped: bool = False,
-) -> bool
+) -> bool: ...
 ```
 
 **Parameters**:
@@ -83,7 +83,7 @@ is_ip_banned
 Check if an IP address is currently banned.
 
 ```python
-def is_ip_banned(ip: str) -> bool
+def is_ip_banned(ip: str) -> bool: ...
 ```
 
 **Parameters**:
@@ -106,7 +106,7 @@ unban_ip
 Remove a ban on an IP address.
 
 ```python
-def unban_ip(ip: str, *, reason: str = "manual_unban") -> None
+def unban_ip(ip: str, *, reason: str = "manual_unban") -> None: ...
 ```
 
 **Parameters**:
@@ -126,7 +126,7 @@ reset
 Reset all banned IPs and every auto-ban strike (the rate-limit and the detection strikes, in memory and in Redis, across every worker that shares the Redis prefix). `unban_ip(ip)` clears that IP's strikes too, and `unban_inside(entries)` clears the strikes of exactly the addresses it removed, so a lifted ban is not reinstated by strikes from before it. Redis is walked with `SCAN` and cleared with `UNLINK`, never `KEYS`.
 
 ```python
-def reset() -> None
+def reset() -> None: ...
 ```
 
 **Example**:

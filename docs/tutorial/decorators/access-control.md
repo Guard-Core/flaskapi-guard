@@ -23,8 +23,10 @@ Control access based on specific IP addresses or CIDR ranges:
 Only allow access from specific IP addresses:
 
 ```python
-from flaskapi_guard import SecurityDecorator
+from flaskapi_guard import SecurityConfig, SecurityDecorator
 
+# block_countries and allow_countries need a geo source on the config
+config = SecurityConfig(ipinfo_token="your_ipinfo_token_here")
 guard_deco = SecurityDecorator(config)
 
 
@@ -138,7 +140,7 @@ def no_clouds_endpoint():
 
 ```python
 @app.route("/api/residential-only")
-@guard_deco.block_clouds(["AWS", "GCP", "Azure", "DigitalOcean", "Cloudflare"])
+@guard_deco.block_clouds(["AWS", "GCP", "Azure", "DigitalOcean", "Linode", "Vultr"])
 def residential_only_endpoint():
     return {"data": "Residential IP addresses only"}
 ```

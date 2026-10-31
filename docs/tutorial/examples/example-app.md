@@ -47,7 +47,7 @@ config = SecurityConfig(
     # Whitelist/Blacklist
     whitelist=["0.0.0.0/32", "0.0.0.0"],
     blacklist=["192.168.1.100/32", "192.168.1.100"],
-    ...
+    # ... more settings
 )
 FlaskAPIGuard(app, config=config)
 ```
