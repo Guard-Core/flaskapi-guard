@@ -47,6 +47,8 @@ Target performance levels for different scenarios:
 | High Security | < 100ms | < 2% |
 | Batch Processing | < 500ms | < 5% |
 
+These are targets for your deployment, not engine guarantees. For scale, the engine's own detection on guard-core 5.0.0 (Python 3.11.18, arm64, sync tree) takes 4.7 ms of CPU at the median and 6.7 ms at the 99th percentile for a 200-character benign value, 2.3 ms (p99 3.3 ms) for a value that carries an attack, and 18.1 ms (p99 26.5 ms) for a 10,000-character benign value. Across 1,000 pattern executions the performance monitor reported an average of 119 µs per pattern, a slowest of 15.2 ms and a timeout rate of 0%. Reproduce with `PYTHONPATH=. python -m perf_gate.detection_components latency --tree sync` from a checkout of guard-core 5.0.0.
+
 ## Optimization Strategies
 
 ### 1. Pattern Optimization
@@ -89,10 +91,10 @@ pattern = r"\w+@\w+\.com"
 #### Use Non-Capturing Groups
 
 ```python
-# Slower - creates capture groups
+# Capture groups: no measurable cost here (CPU ratio 1.007 against itself at 200 characters, 1.001 at 10,000)
 pattern = r"(SELECT|INSERT|UPDATE).*(FROM|INTO)"
 
-# Faster - non-capturing groups
+# Non-capturing groups: the same speed (ratio 1.021 at 200 characters, 1.001 at 10,000); use them when you do not need the captured text
 pattern = r"(?:SELECT|INSERT|UPDATE).*(?:FROM|INTO)"
 ```
 
@@ -103,7 +105,7 @@ pattern = r"(?:SELECT|INSERT|UPDATE).*(?:FROM|INTO)"
 ```python
 # For high-traffic APIs
 config = SecurityConfig(
-    detection_max_content_length=2000,  # Analyze less content
+    detection_max_content_length=2000,  # Analyze less content (detection CPU on a 10,000-character benign value: ratio 0.749 against 1.005 for the default again)
     detection_preserve_attack_patterns=True,  # Still preserve threats
 )
 
@@ -152,7 +154,7 @@ def process_data():
 
 ```python
 # Performance vs Security trade-off
-# Higher threshold = Faster (fewer semantic checks triggered)
+# The threshold changes what is flagged, not the work done: detection costs the same CPU at 0.6, 0.7 and 0.8 (ratios to 0.7: benign value 1.009 and 1.006, against 1.001 for 0.7 again; value with an attack 1.010 and 1.022, against 1.035)
 config = SecurityConfig(
     detection_semantic_threshold=0.8  # Only high-confidence threats
 )
@@ -437,12 +439,13 @@ Before deploying to production:
 - [ ] Average execution time < 50ms
 - [ ] Timeout rate < 1%
 - [ ] No patterns with > 100ms average execution
-- [ ] Cache hit rate > 80%
 - [ ] Memory usage stable over 24 hours
 - [ ] CPU usage < 20% under normal load
 - [ ] Tested with 10x expected traffic
 - [ ] Monitoring alerts configured
 - [ ] Rollback plan prepared
+
+For scale, measured on guard-core 5.0.0 (sync tree): detecting a 200-character benign value takes 4.7 ms of CPU, so 20% of one core covers about 43 such detections per second; the monitor's average per-pattern execution time was 119 µs with a timeout rate of 0% (`PYTHONPATH=. python -m perf_gate.detection_components latency --tree sync`). guard-core 5.0.0 reports no cache hit rate, so the checklist has no such item.
 
 ## Next Steps
 

@@ -314,19 +314,33 @@ Each component handles errors independently:
 
 ### Latency Impact
 
-| Component | Typical Latency | Max Latency |
-|-----------|----------------|-------------|
-| Preprocessing | < 1ms | 5ms |
-| Pattern Matching (per pattern) | < 0.1ms | timeout value |
-| Semantic Analysis | 1-5ms | 10ms |
-| Total Detection | 5-20ms | 50ms |
+CPU time per call on guard-core 5.0.0, Python 3.11.18, arm64 (an Apple Silicon Mac), with the synchronous engine tree. Each cell is the median (and the 99th percentile) of 4000 calls for a 200-character benign value and 1000 calls for a 10,000-character one (the `detection_max_content_length` default). Two arms of the same code ran interleaved, and their medians agree within 1.1% in every cell.
+
+| Component | 200-character value | 10,000-character value | Slowest call seen (10,000 characters) |
+|-----------|---------------------|------------------------|------------------------------------|
+| Preprocessing | 32 µs (p99 37 µs) | 861 µs (p99 943 µs) | 1.2 ms |
+| One default pattern (`search`, over the 206 compiled patterns) | 0.28 µs (p99 13 µs) | 3.4 µs (p99 667 µs) | 948 µs |
+| Semantic analysis | 136 µs (p99 173 µs) | 5.7 ms (p99 6.3 ms) | 9.2 ms |
+| Total detection of a benign value | 4.7 ms (p99 6.7 ms) | 18.1 ms (p99 26.5 ms) | 32.0 ms |
+| Total detection of a value that carries an attack | 2.3 ms (p99 3.3 ms) | 17.8 ms (p99 21.1 ms) | 24.5 ms |
+
+The pattern row times one `re.Pattern.search` of each default pattern on its own; the engine runs them behind its own scan windows and decoded views, so the total rows are the whole `detect_penetration_attempt` call (preprocessing, every pattern, semantic analysis), not the sum of the rows above. The numbers are one machine's: measure yours from a checkout of guard-core 5.0.0 with `PYTHONPATH=. python -m perf_gate.detection_components latency --tree sync` (the script is `perf_gate/detection_components.py`).
 
 ### Memory Usage
 
-- Pattern storage: ~100KB for default patterns
-- Compiled pattern cache: ~1MB
-- Performance history: ~500KB (configurable)
-- Total overhead: ~2-5MB per instance
+Python heap (`tracemalloc`) and resident set size (RSS) added by each step, in a fresh process on guard-core 5.0.0 and Python 3.11.18 with the synchronous engine tree; the heap is the median of three runs and the RSS is the range of the same three:
+
+| Step | Python heap | RSS |
+|------|-------------|-----|
+| `import guard_core` and the engine modules | 31.7 MiB | 66.4 MiB to 68.3 MiB |
+| The first `SecurityConfig()` | 432 KiB | 656 KiB to 2.4 MiB |
+| An app's detection state (compiler, preprocessor, semantic analyzer, performance monitor) | 5.5 MiB | 16.4 MiB to 16.8 MiB |
+| The default pattern rows, on first access | 466 KiB | 1.3 MiB to 1.6 MiB |
+| The first detection | 504 KiB | 512 KiB to 640 KiB |
+| A full performance history (1000 metrics, the `detection_monitor_history_size` default) | 215 KiB | 64 KiB |
+| Each further app (a `SecurityConfig` with its own Redis prefix) | 20 KiB | 16 KiB to 32 KiB |
+
+The default pattern sources are 70 KiB of Python strings. From the first `SecurityConfig()` to a full performance history, one app adds 7.1 MiB of Python heap and 18.9 MiB to 21.5 MiB of RSS on top of the import; the compiled built-in rows and the regex worker pool are process-wide, and a further app adds 20 KiB. Reproduce with `PYTHONPATH=. python -m perf_gate.detection_components memory --tree sync` from a checkout of guard-core 5.0.0.
 
 ## Monitoring and Debugging
 

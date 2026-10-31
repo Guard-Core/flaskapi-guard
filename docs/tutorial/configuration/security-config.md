@@ -291,16 +291,17 @@ ___
 Model Serialization
 -------------------
 
-All models support standard Pydantic v2 serialization. `SecurityConfig` holds a read-only default in `threat_ban_config`, so dump it with `exclude_unset=True` (a full `model_dump_json()` and `model_json_schema()` raise `PydanticSerializationError` and `PydanticInvalidForJsonSchema`), and read its field metadata from `model_fields`:
+All models support standard Pydantic v2 serialization, and `SecurityConfig` serializes every field, `threat_ban_config` and the handler fields included. Up to guard-core 4.4.0 a full `model_dump_json()` raised `PydanticSerializationError` and `model_json_schema()` raised `PydanticInvalidForJsonSchema`; with guard-core 5.0.0 both work, and `model_fields` still gives the field metadata:
 
 ```python
 config_dict = config.model_dump(exclude_unset=True)
-config_json = config.model_dump_json(indent=2, exclude_unset=True)
+config_json = config.model_dump_json(indent=2)
 
 config = SecurityConfig.model_validate(config_dict)
 config = SecurityConfig.model_validate_json(config_json)
 
 fields = SecurityConfig.model_fields
+schema = SecurityConfig.model_json_schema()
 ```
 
 ___
