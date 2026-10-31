@@ -52,20 +52,16 @@ guard = FlaskAPIGuard(app, config=config)
 ## Route-Level Security Decorators
 
 ```python
-from flaskapi_guard import RouteConfig, SecurityDecorator
+from flaskapi_guard import SecurityDecorator
 
-security = SecurityDecorator()
+security = SecurityDecorator(config)
+guard.set_decorator_handler(security)
 
 
 @app.route("/api/sensitive")
-@security.configure(
-    RouteConfig(
-        rate_limit=5,
-        rate_limit_window=60,
-        require_https=True,
-        blocked_countries=["XX"],
-    )
-)
+@security.rate_limit(requests=5, window=60)
+@security.require_https()
+@security.require_ip(whitelist=["10.0.0.0/8"])
 def sensitive_endpoint():
     return {"data": "restricted"}
 ```
