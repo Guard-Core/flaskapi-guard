@@ -86,6 +86,47 @@ def _teardown():
     security_headers_manager.reset()
     sus_patterns_handler.reset()
 """
+ALT_PRELUDE = """
+from typing import *
+import dataclasses, ipaddress, json, logging, re, time
+from datetime import datetime, timedelta
+from pathlib import Path
+from dataclasses import dataclass
+from contextlib import contextmanager
+from flask import Flask, Response, jsonify, request
+from flaskapi_guard import *
+
+
+class _DocumentationApp(Flask):
+    def add_url_rule(self, rule, endpoint=None, view_func=None, **options):
+        self.view_functions.pop(endpoint or getattr(view_func, "__name__", ""), None)
+        super().add_url_rule(rule, endpoint, view_func, **options)
+
+
+app = _DocumentationApp(__name__)
+config = SecurityConfig(
+    ipinfo_token="test-token",
+    behavior_scan_response_body=True,
+    enable_redis=True,
+    redis_url="redis://localhost:6379",
+)
+guard = FlaskAPIGuard(app, config=config)
+guard_deco = SecurityDecorator(config)
+redis_handler = RedisManager(config)
+sus_patterns_handler.configure(config)
+_context = app.test_request_context()
+_context.push()
+
+
+def _teardown():
+    for _manager in (ip_ban_manager, security_headers_manager, cloud_handler):
+        _manager.redis_handler = None
+    _context.pop()
+    ip_ban_manager.reset()
+    security_headers_manager.reset()
+    sus_patterns_handler.reset()
+"""
+PRELUDE_PREFIXES = ("",)
 
 
 def _markdown_files() -> list[Path]:
@@ -525,11 +566,12 @@ def test_the_shipped_markdown_is_found() -> None:
     assert sum(len(_python_blocks(path)) for path in MARKDOWN_FILES) > 100
 
 
+@pytest.mark.usefixtures("sandbox")
 @pytest.mark.parametrize(
     "path", MARKDOWN_FILES, ids=lambda path: path.relative_to(ROOT).as_posix()
 )
 def test_every_python_block_parses_runs_and_matches_the_api(
-    path: Path, sandbox: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    path: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     name = path.relative_to(ROOT).as_posix()
     monkeypatch.chdir(tmp_path)
@@ -549,7 +591,8 @@ def test_every_python_block_parses_runs_and_matches_the_api(
         warnings.simplefilter("error")
         # A relative import in a page fragment has no package to resolve against
         warnings.simplefilter("ignore", ImportWarning)
-        exec(compile(PRELUDE, "prelude", "exec"), namespace)
+        prelude = PRELUDE if name.startswith(PRELUDE_PREFIXES) else ALT_PRELUDE
+        exec(compile(prelude, "prelude", "exec"), namespace)
         for line, body in blocks:
             label = f"{name}:{line}"
             try:

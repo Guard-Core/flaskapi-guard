@@ -100,7 +100,8 @@ This function lives in `guard_core.sync.handlers._suspatterns_state`. All four c
 ### 1. Request Reception
 
 ```python
-# In SuspiciousActivityCheck (guard_core.sync.core.checks.implementations.suspicious_activity)
+# In SuspiciousActivityCheck (guard_core.sync.core.checks.implementations.suspicious_activity),
+# through detect_penetration_patterns() in guard_core.sync.core.checks.helpers
 if self.config.enable_penetration_detection:
     result = detect_penetration_attempt(request, self.config, route_config)
     if result.is_threat:
@@ -123,7 +124,8 @@ def detect_penetration_attempt(
 ) -> DetectionResult:
     # Extract content from the request: query parameters, the request body
     # (JSON values are walked key by key), the path and the headers, each
-    # tagged with its context ("query_param:<name>", "body", "path", "header:<name>"),
+    # tagged with its context ("query_param:<name>", "header:<name>", "url_path",
+    # "request_body" and its sub-contexts such as "request_body:form_field"),
     # honouring excluded_detection_params, excluded_detection_headers,
     # excluded_detection_body_fields and the scan budgets
     # (detection_max_scan_values, detection_max_json_depth, detection_max_scan_chars)
