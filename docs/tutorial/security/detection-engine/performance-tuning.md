@@ -439,13 +439,14 @@ Before deploying to production:
 - [ ] Average execution time < 50ms
 - [ ] Timeout rate < 1%
 - [ ] No patterns with > 100ms average execution
+- [ ] Pattern validation cache hit rate above 80% after a restart (`detection_pattern_validation_cache_path` set)
 - [ ] Memory usage stable over 24 hours
 - [ ] CPU usage < 20% under normal load
 - [ ] Tested with 10x expected traffic
 - [ ] Monitoring alerts configured
 - [ ] Rollback plan prepared
 
-For scale, measured on guard-core 5.0.0 (sync tree): detecting a 200-character benign value takes 4.7 ms of CPU, so 20% of one core covers about 43 such detections per second; the monitor's average per-pattern execution time was 119 µs with a timeout rate of 0% (`PYTHONPATH=. python -m perf_gate.detection_components latency --tree sync`). guard-core 5.0.0 reports no cache hit rate, so the checklist has no such item.
+For scale, measured on guard-core 5.0.0 (sync tree): detecting a 200-character benign value takes 4.7 ms of CPU, so 20% of one core covers about 43 such detections per second; the monitor's average per-pattern execution time was 119 µs with a timeout rate of 0% (`PYTHONPATH=. python -m perf_gate.detection_components latency --tree sync`). The cache hit rate comes from `await sus_patterns_handler.get_cache_stats()` (`["pattern_validation"]["hit_rate"]`): with 20 custom patterns it was 0.0 at the first boot and 1.0 at the second boot on the same cache file (`PYTHONPATH=. python -m perf_gate.cache_hit_rate`). The compiled-pattern cache (`["compiled_patterns"]`) is the one the blocked user-agent patterns and `add_pattern` compile through, so its hit rate rises with traffic when `blocked_user_agents` is set; adding or removing a pattern clears it and the counters survive the clear.
 
 ## Next Steps
 
