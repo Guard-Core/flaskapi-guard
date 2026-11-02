@@ -1,3 +1,4 @@
+import os
 from typing import Any, cast
 from unittest.mock import MagicMock, Mock, patch
 
@@ -12,6 +13,8 @@ from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.adapters import FlaskGuardResponse
 from flaskapi_guard.extension import FlaskAPIGuard
+
+REDIS_URL = os.getenv("REDIS_URL") or "redis://localhost:6379"
 
 
 def test_set_decorator_handler() -> None:
