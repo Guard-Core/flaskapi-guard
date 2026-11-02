@@ -32,19 +32,19 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           # Stays on 3.12 on purpose: drift and live-stack smoke are interpreter-agnostic checks; the matrix in ci.yml runs the suite on every version.
           python-version: '3.12'
 
       - name: Install uv
         run: |
-          pip install uv
+          pip install uv==0.13.4
 
       - name: Build the flaskapi_guard wheel from this checkout
         run: |
