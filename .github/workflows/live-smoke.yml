@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: read # check out the repository
 
 concurrency:
   group: live-smoke-${{ github.ref }}

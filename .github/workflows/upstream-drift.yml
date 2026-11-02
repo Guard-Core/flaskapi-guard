@@ -6,7 +6,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: read # check out the repository
+
+concurrency:
+  group: upstream-drift
+  cancel-in-progress: false
 
 jobs:
   drift:
