@@ -18,12 +18,14 @@ install-dev:
 .PHONY: lock
 lock:
 	@uv lock
+	@uv lock --directory tools/semgrep
 	@find . | grep -E "(__pycache__|\\.pyc|\\.pyo|\\.pytest_cache|\\.ruff_cache|\\.mypy_cache)" | xargs rm -rf
 
 # Upgrade dependencies
 .PHONY: upgrade
 upgrade:
 	@uv lock --upgrade
+	@uv lock --directory tools/semgrep --upgrade
 	@uv sync --all-extras
 	@find . | grep -E "(__pycache__|\\.pyc|\\.pyo|\\.pytest_cache|\\.ruff_cache|\\.mypy_cache)" | xargs rm -rf
 
@@ -146,9 +148,17 @@ security: bandit safety pip-audit
 quality: lint vulture radon xenon
 	@echo "All code quality checks completed."
 
+# Static analysis with Semgrep
+.PHONY: semgrep
+semgrep:
+	@echo "Running Semgrep static analysis..."
+	@echo ''
+	@uv run --project tools/semgrep --locked semgrep --config=auto flaskapi_guard
+	@find . | grep -E "(__pycache__|\\.pyc|\\.pyo|\\.pytest_cache|\\.ruff_cache|\\.mypy_cache)" | xargs rm -rf
+
 # Run all analysis tools
 .PHONY: analysis
-analysis: deptry
+analysis: deptry semgrep
 	@echo "All analysis tools completed."
 
 # Run all checks (linting, security, quality, and analysis)
