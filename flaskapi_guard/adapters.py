@@ -290,10 +290,14 @@ class FlaskResponseFactory:
 def unwrap_response(guard_response: GuardResponse) -> Response:
     if isinstance(guard_response, FlaskGuardResponse):
         return guard_response._response
+    headers = dict(guard_response.headers)
+    if not any(name.lower() == "content-type" for name in headers):
+        # a foreign response that names no type must not be sniffed or served as html
+        headers["Content-Type"] = "text/plain; charset=utf-8"
     return Response(
         guard_response.body,
         status=guard_response.status_code,
-        headers=dict(guard_response.headers),
+        headers=headers,
     )
 
 

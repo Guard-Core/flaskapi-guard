@@ -135,3 +135,22 @@ def test_unwrap_response_generic() -> None:
     mock_resp.headers = {"X-Test": "val"}
     unwrapped = unwrap_response(mock_resp)
     assert unwrapped.status_code == 404
+
+
+class _ForeignResponse:
+    def __init__(self, headers: dict[str, str]) -> None:
+        self.status_code = 200
+        self.headers = headers
+        self.body = b"<script>alert(1)</script>"
+
+
+def test_unwrap_foreign_response_without_content_type_is_text_plain() -> None:
+    unwrapped = unwrap_response(_ForeignResponse({"X-Test": "v"}))
+    assert unwrapped.headers["Content-Type"] == "text/plain; charset=utf-8"
+    assert unwrapped.get_data() == b"<script>alert(1)</script>"
+
+
+def test_unwrap_foreign_response_keeps_named_content_type_any_case() -> None:
+    unwrapped = unwrap_response(_ForeignResponse({"cOnTeNt-TyPe": "application/json"}))
+    assert unwrapped.headers["Content-Type"] == "application/json"
+    assert unwrapped.get_data() == b"<script>alert(1)</script>"
