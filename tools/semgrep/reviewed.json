@@ -1,0 +1,12 @@
+{
+  "reviewed": [
+    {
+      "rule": "python.lang.security.audit.non-literal-import.non-literal-import",
+      "path": "flaskapi_guard/__init__.py",
+      "code": "import_module(module_name)",
+      "count": 1,
+      "reason": "Lazy loader (module __getattr__ or lazy pattern holder). The name is looked up in a fixed table in this file, or must resolve with find_spec as a submodule of this same package, so a caller cannot make it import outside the package.",
+      "expires": "2026-12-15"
+    }
+  ]
+}
