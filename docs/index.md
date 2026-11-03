@@ -107,7 +107,7 @@ You can also download the example app as a Docker container from [GitHub Contain
 docker pull ghcr.io/guard-core/flaskapi-guard-example:latest
 
 # Or pull a specific version (matches library releases)
-docker pull ghcr.io/guard-core/flaskapi-guard-example:v4.4.0
+docker pull ghcr.io/guard-core/flaskapi-guard-example:v5.0.0
 ```
 
 ___

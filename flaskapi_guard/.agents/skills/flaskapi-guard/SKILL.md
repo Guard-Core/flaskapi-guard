@@ -5,7 +5,7 @@ description: FlaskAPI Guard, the Flask/WSGI security extension over guard-core. 
 
 # FlaskAPI Guard
 
-Security extension for Flask: IP filtering, rate limiting, signature-based attack-pattern detection, security headers, and route-level security decorators. Import package is `flaskapi_guard` (distribution name `flaskapi_guard`). Current as of flaskapi-guard 4.4.0 over guard-core 5.0.0.
+Security extension for Flask: IP filtering, rate limiting, signature-based attack-pattern detection, security headers, and route-level security decorators. Import package is `flaskapi_guard` (distribution name `flaskapi_guard`). Current as of flaskapi-guard 5.0.0 over guard-core 5.0.0.
 
 FlaskAPI Guard is a thin adapter: all security logic (models, handlers, decorators, detection engine, protocols) lives in `guard_core`; this package only bridges Flask/WSGI to it through the unasync-generated `guard_core.sync` mirror. Everything is synchronous.
 

@@ -1318,7 +1318,7 @@ wheels = [
 
 [[package]]
 name = "flaskapi-guard"
-version = "4.4.0"
+version = "5.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "flask" },
