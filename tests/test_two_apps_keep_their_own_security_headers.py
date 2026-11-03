@@ -5,6 +5,7 @@ from flask import Flask
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig
+from tests.redis_isolation import suite_redis_prefix
 
 ORIGIN_A = "https://a.example"
 ORIGIN_B = "https://b.example"
@@ -18,7 +19,7 @@ def _app(name: str, origin: str, max_age: int, redis: bool) -> Flask:
         config=SecurityConfig[SyncGuardRequest](
             enable_redis=redis,
             redis_url=REDIS_URL if redis else None,
-            redis_prefix="wp102:",
+            redis_prefix=suite_redis_prefix("wp102"),
             enable_rate_limiting=False,
             enable_ip_banning=False,
             enable_cors=True,

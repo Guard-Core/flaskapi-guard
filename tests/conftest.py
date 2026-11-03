@@ -167,7 +167,9 @@ def security_config_redis(ipinfo_db_path: Path) -> SecurityConfig[SyncGuardReque
 
 
 @pytest.fixture(autouse=True)
-def redis_cleanup() -> None:
+def redis_cleanup() -> Generator[None, None, None]:
+    delete_every_key_under_the_suite_prefix()
+    yield
     delete_every_key_under_the_suite_prefix()
 
 

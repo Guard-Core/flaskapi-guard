@@ -9,6 +9,7 @@ from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig
+from tests.redis_isolation import suite_redis_prefix
 
 REDIS_URL = os.getenv("REDIS_URL") or "redis://localhost:6379"
 PROXY = "10.0.0.1"
@@ -18,7 +19,7 @@ def _config(prefix: str, proxies: tuple[str, ...]) -> SecurityConfig[SyncGuardRe
     return SecurityConfig[SyncGuardRequest](
         enable_redis=True,
         redis_url=REDIS_URL,
-        redis_prefix=prefix,
+        redis_prefix=suite_redis_prefix(prefix),
         trusted_proxies=proxies,
         enable_rate_limiting=False,
         enable_penetration_detection=False,
@@ -53,7 +54,7 @@ def cleanup() -> Iterator[list[SecurityConfig[SyncGuardRequest]]]:
 def test_a_ban_in_a_route_handler_goes_through_the_routes_own_app(
     cleanup: list[SecurityConfig[SyncGuardRequest]],
 ) -> None:
-    config_a, config_b = _config("wp136-hold:", (PROXY,)), _config("wp136-hold:", ())
+    config_a, config_b = _config("wp136-hold", (PROXY,)), _config("wp136-hold", ())
     cleanup.extend([config_a, config_b])
     seen_a: dict[str, Any] = {}
     seen_b: dict[str, Any] = {}
@@ -71,7 +72,7 @@ def test_a_ban_in_a_route_handler_goes_through_the_routes_own_app(
 
 
 def test_a_raising_view_leaves_no_scope_for_the_next_request_on_the_thread() -> None:
-    app = _app(_config("wp136-boom:", ()), {})
+    app = _app(_config("wp136-boom", ()), {})
     app.config["PROPAGATE_EXCEPTIONS"] = True
 
     with pytest.raises(RuntimeError, match="view failed"):
@@ -84,8 +85,8 @@ def test_a_nested_app_request_hands_back_the_outer_apps_scope(
     cleanup: list[SecurityConfig[SyncGuardRequest]],
 ) -> None:
     config_outer, config_inner = (
-        _config("wp136-nest:", (PROXY,)),
-        _config("wp136-nest:", ()),
+        _config("wp136-nest", (PROXY,)),
+        _config("wp136-nest", ()),
     )
     cleanup.extend([config_outer, config_inner])
     inner = _app(config_inner, {})
