@@ -21,9 +21,8 @@ def keys_written_before_every_test_in_this_module() -> Generator[None, None, Non
     client.close()
 
 
-def test_cleanup_removes_a_key_the_suite_wrote_under_its_prefix(
-    keys_written_before_every_test_in_this_module: None,
-) -> None:
+@pytest.mark.usefixtures("keys_written_before_every_test_in_this_module")
+def test_cleanup_removes_a_key_the_suite_wrote_under_its_prefix() -> None:
     client = redis.Redis.from_url(REDIS_URL)
     try:
         assert client.exists(INSIDE_KEY) == 0
@@ -31,9 +30,8 @@ def test_cleanup_removes_a_key_the_suite_wrote_under_its_prefix(
         client.close()
 
 
-def test_a_key_outside_the_suite_prefix_survives_the_cleanup(
-    keys_written_before_every_test_in_this_module: None,
-) -> None:
+@pytest.mark.usefixtures("keys_written_before_every_test_in_this_module")
+def test_a_key_outside_the_suite_prefix_survives_the_cleanup() -> None:
     client = redis.Redis.from_url(REDIS_URL)
     try:
         assert client.exists(OUTSIDE_KEY) == 1
