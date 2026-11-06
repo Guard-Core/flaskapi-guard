@@ -29,7 +29,7 @@ class _DrippingInput(io.RawIOBase):
     def seekable(self) -> bool:
         return True
 
-    def seek(self, offset: int, whence: int = 0) -> int:
+    def seek(self, _offset: int, _whence: int = 0) -> int:
         return 0
 
     def tell(self) -> int:
@@ -221,7 +221,7 @@ def _serve_werkzeug(app: Flask) -> Iterator[int]:
 class _TimingOutHandler(WSGIRequestHandler):
     timeout = 0.3
 
-    def log_message(self, format: str, *args: Any) -> None:
+    def log_message(self, _format: str, *args: Any) -> None:
         return None
 
 

@@ -6,6 +6,8 @@ ___
 Unreleased
 ----------
 
+- **Fixed** - **The `guard-core` floor is `>=5.0.0,<6` (LEDGER 6.356, 6.537, D-14).** This release's code uses engine names that guard-core 4.4.x does not have, so an environment that kept 4.4.x imported a broken package. Upgrading now installs guard-core 5.x and stops below the next major. An install that must stay on guard-core 4.x stays on the previous release of this package. The lock follows the floor once guard-core 5.0.0 is published.
+
 - **Fixed** - **Every shipped dependency declares a lower bound with no known advisory (LEDGER 6.510).** The declared floors are now `flask>=3.1.3`, `werkzeug>=3.1.9` and `gunicorn>=22.0.0` (none had a lower bound; the first two are the first releases with no advisory against them). An app pinned below Flask 3.1.3 or Werkzeug 3.1.9 must move up to them. The suite passes with every direct dependency at its floor on Python 3.10 and 3.11.
 
 - **Fixed** - **The lock moved past every known advisory and the supply chain is pinned (LEDGER 6.495 to 6.497).** The lock moves `certifi` to 2026.10.18, `joserfc` to 1.7.6 and `nltk` to 3.10.4; no declared floor changes. A new CVE gate (`cve-scan.yml`, run on every pull request, push, daily and before a release) fails on any open advisory in the lock, in the declared dependency floors and in the published image, and every workflow action and tool install is pinned to a commit or version.

@@ -23,6 +23,7 @@ class _CountryStubGeoIPHandler:
         max_age: int = 86400,
         download_url: str | None = None,
     ) -> None:
+        self.download_url = download_url
         self.is_initialized = True
 
     def initialize(self) -> None:
