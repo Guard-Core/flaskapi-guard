@@ -1,5 +1,6 @@
 import os
-from collections.abc import Generator
+import sys
+from collections.abc import Generator, Iterator
 from pathlib import Path
 from typing import Any, cast
 
@@ -15,6 +16,7 @@ from guard_core.sync.handlers.suspatterns_handler import sus_patterns_handler
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard.extension import FlaskAPIGuard
+from tests import network_guard, thread_guard
 from tests.agent_loop import close_the_agent_event_loop
 from tests.redis_isolation import (
     REDIS_PREFIX,
@@ -24,6 +26,9 @@ from tests.redis_isolation import (
     refuse_connections_to_the_default_redis_port,
     refused_connections,
 )
+
+network_guard.install()
+thread_guard.install()
 
 IPINFO_TOKEN = str(os.getenv("IPINFO_TOKEN"))
 
@@ -55,6 +60,18 @@ def refused_redis_connections() -> Generator[list[tuple[Any, ...]], None, None]:
 def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
     terminalreporter.write_line(
         f"redis isolation: REDIS_URL={REDIS_URL} REDIS_PREFIX={REDIS_PREFIX}"
+    )
+
+
+def _refuse_the_ipinfo_download(self: object) -> None:
+    raise ConnectionError("the test suite has no network")
+
+
+@pytest.fixture(autouse=True)
+def no_ipinfo_database_download(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "guard_core.sync.handlers.ipinfo_handler.IPInfoManager._fetch_and_store_database",
+        _refuse_the_ipinfo_download,
     )
 
 
@@ -197,3 +214,19 @@ def clean_rate_limiter() -> None:
 
     with _managers_lock:
         _managers.clear()
+
+
+@pytest.fixture(autouse=True)
+def _no_outbound_network() -> Iterator[None]:
+    network_guard.reset()
+    yield
+    violations = network_guard.drain()
+    assert not violations, "test reached the network:\n" + "\n".join(violations)
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    thread_guard.stop_the_shared_regex_pools()
+    leaked = thread_guard.leaked_threads()
+    if leaked:
+        sys.stderr.write(f"\nthreads the tests left running: {leaked}\n")
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
