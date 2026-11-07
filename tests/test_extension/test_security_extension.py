@@ -834,16 +834,17 @@ def test_fallback_to_pipeline(
 
     try:
         handler.rate_limit_script_sha = None
-        before = _evalsha_calls(handler)
-        results = _three_checks(app, handler)
-        after = _evalsha_calls(handler)
+        with handler.redis_handler.get_connection() as conn:
+            spy = patch.object(conn, "evalsha", wraps=conn.evalsha)
+        with spy as evalsha_spy:
+            results = _three_checks(app, handler)
 
         assert results[0] is None
         assert results[1] is None
         assert results[2] is not None
         assert results[2].status_code == 429
         assert results[2].body == b"Too many requests"
-        assert after == before
+        evalsha_spy.assert_not_called()
     finally:
         handler.redis_handler.delete_pattern("rate_limit:rate:*")
 
