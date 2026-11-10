@@ -633,3 +633,17 @@ def test_route_specific_rate_limit_counts_apart_from_the_global_limit() -> None:
 
     assert limited == [200] * 5 + [429] * 2
     assert open_codes == [200] * 7
+
+
+@pytest.mark.parametrize(
+    ("hour", "allowed"), [(3, False), (10, True), (20, False)], ids=["3", "10", "20"]
+)
+def test_time_window_single_digit_hour_bound_is_compared_as_time(
+    hour: int, allowed: bool
+) -> None:
+    guard = FlaskAPIGuard(Flask(__name__), config=SecurityConfig[SyncGuardRequest]())
+
+    with patch("guard_core.sync.core.validation.validator.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime(2026, 1, 1, hour, 0)
+        result = guard._check_time_window({"start": "9:00", "end": "17:00"})
+    assert result is allowed
