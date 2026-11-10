@@ -288,15 +288,17 @@ except ValueError as e:
 ### Check Performance Impact
 
 ```python
-# Get performance statistics
+# Get performance statistics (None until the app has handled its first request,
+# which is when the detection engine is configured)
 stats = patterns.get_performance_stats()
 
 # Analyze configuration effectiveness
-if stats["summary"]["avg_execution_time"] > 0.05:
-    print("Consider optimizing configuration for better performance")
+if stats is not None:
+    if stats["summary"]["avg_execution_time"] > 0.05:
+        print("Consider optimizing configuration for better performance")
 
-if stats["summary"]["timeout_rate"] > 0.01:
-    print("High timeout rate - consider increasing compiler_timeout")
+    if stats["summary"]["timeout_rate"] > 0.01:
+        print("High timeout rate - consider increasing compiler_timeout")
 ```
 
 ### Monitor False Positives
@@ -332,7 +334,7 @@ config.detection_semantic_threshold = 0.8
 
 # Review problematic patterns
 stats = patterns.get_performance_stats()
-for pattern in stats["problematic_patterns"]:
+for pattern in (stats or {}).get("problematic_patterns", []):
     print(f"Review pattern: {pattern}")
 ```
 
@@ -346,7 +348,7 @@ config.detection_max_content_length = 5000
 config.detection_compiler_timeout = 3.0
 
 # Monitor specific patterns
-slow_patterns = patterns.get_performance_stats()["slow_patterns"]
+slow_patterns = (patterns.get_performance_stats() or {}).get("slow_patterns", [])
 ```
 
 ### Memory Usage
