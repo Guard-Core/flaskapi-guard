@@ -104,9 +104,12 @@ Monitor and optimize detection performance:
 
 ```python
 # Get performance statistics
+# None until the app has handled its first request,
+# which is when the detection engine is configured
 stats = patterns.get_performance_stats()
-print(f"Slow patterns: {stats['slow_patterns']}")
-print(f"Problematic patterns: {stats['problematic_patterns']}")
+if stats is not None:
+    print(f"Slow patterns: {stats['slow_patterns']}")
+    print(f"Problematic patterns: {stats['problematic_patterns']}")
 ```
 
 Custom Detection Logic
