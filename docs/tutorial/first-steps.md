@@ -104,6 +104,21 @@ Your API is now protected by FlaskAPI Guard!
 
 ___
 
+Releasing an app
+----------------
+
+Flask has no app-shutdown event, so `FlaskAPIGuard` never releases its app on its own: serving requests leaves the module-level default managers bound to the first app that took them. When a host stops an app, or a test suite builds several apps in one process, release each app's config explicitly:
+
+```python
+from flaskapi_guard import release_app
+
+release_app(config)
+```
+
+The default managers then go to the next app at that moment. An app that is never released keeps the garbage-collector-timed handoff of guard-core 5.0.0: the next app gets the defaults only once the collector has freed the earlier one, so which managers a later app gets can differ between runs. In a test suite, call `release_app(config)` in a fixture after each test.
+
+___
+
 What's Next
 -----------
 
