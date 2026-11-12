@@ -1,14 +1,17 @@
 import os
 import sys
-from collections.abc import Generator, Iterator
+import weakref
+from collections.abc import Callable, Generator, Iterator
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Concatenate, ParamSpec, cast
 
 import pytest
 from flask import Flask
 from guard_core.models import SecurityConfig
 from guard_core.protocols.geo_ip_protocol import GeoIPHandler
-from guard_core.sync.handlers.cloud_handler import cloud_handler
+from guard_core.sync import release_app
+from guard_core.sync.core.initialization.handler_initializer import HandlerInitializer
+from guard_core.sync.handlers.cloud_handler import cloud_handler, cloud_handler_for
 from guard_core.sync.handlers.ipban_handler import reset_global_state
 from guard_core.sync.handlers.ipinfo_handler import IPInfoManager
 from guard_core.sync.handlers.ratelimit_handler import rate_limit_handler
@@ -84,6 +87,53 @@ def no_cloud_range_downloads(monkeypatch: pytest.MonkeyPatch) -> None:
         "guard_core.sync.handlers.cloud_handler._fetch_provider_ranges",
         lambda provider: (set(), {}),
     )
+
+
+_P = ParamSpec("_P")
+
+
+def _recording_the_config_it_binds(
+    original: Callable[Concatenate[HandlerInitializer, _P], None],
+    bound: list[weakref.ref[SecurityConfig[SyncGuardRequest]]],
+) -> Callable[Concatenate[HandlerInitializer, _P], None]:
+    def initializer(
+        self: HandlerInitializer, *args: _P.args, **kwargs: _P.kwargs
+    ) -> None:
+        original(self, *args, **kwargs)
+        bound.append(weakref.ref(self.config))
+
+    return initializer
+
+
+def _let_the_scheduled_cloud_refresh_end(
+    config: SecurityConfig[SyncGuardRequest],
+) -> None:
+    # A request schedules a background download; it must end while the fixture
+    # that refuses the download is still in place.
+    refresh = cloud_handler_for(config)._refresh_task
+    if refresh is not None:
+        refresh.join(timeout=30)
+
+
+@pytest.fixture(autouse=True)
+def _release_every_app_between_tests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[None]:
+    """HandlerInitializer binds an app's config to the engine's managers; an app
+    that nothing releases keeps that binding until the collector frees it, so
+    which managers the next test gets would depend on collector timing (D-317)."""
+    bound: list[weakref.ref[SecurityConfig[SyncGuardRequest]]] = []
+    monkeypatch.setattr(
+        HandlerInitializer,
+        "__init__",
+        _recording_the_config_it_binds(HandlerInitializer.__init__, bound),
+    )
+    yield
+    for reference in bound:
+        config = reference()
+        if config is not None:
+            _let_the_scheduled_cloud_refresh_end(config)
+            release_app(config)
 
 
 @pytest.fixture(autouse=True)

@@ -328,8 +328,11 @@ import threading
 
 def cleanup_task():
     while True:
-        patterns._performance_monitor.clear_stats()
-        patterns._compiler.clear_cache()
+        # Both are None until the app has handled its first request
+        if patterns._performance_monitor is not None:
+            patterns._performance_monitor.clear_stats()
+        if patterns._compiler is not None:
+            patterns._compiler.clear_cache()
         time.sleep(3600)  # Every hour
 
 
