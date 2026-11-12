@@ -39,19 +39,13 @@ def health_response(status: str = "healthy") -> dict[str, Any]:
 
 
 def stats_response(
-    total_requests: int,
-    blocked_requests: int,
     banned_ips: list[str],
-    rate_limited_ips: dict[str, int],
-    suspicious_activities: list[dict[str, Any]],
+    rate_limit_windows: dict[str, int],
     active_rules: dict[str, Any],
 ) -> dict[str, Any]:
     return {
-        "total_requests": total_requests,
-        "blocked_requests": blocked_requests,
         "banned_ips": banned_ips,
-        "rate_limited_ips": rate_limited_ips,
-        "suspicious_activities": suspicious_activities,
+        "rate_limit_windows": rate_limit_windows,
         "active_rules": active_rules,
     }
 

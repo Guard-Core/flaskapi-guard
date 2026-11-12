@@ -4,6 +4,7 @@ import sys
 import time
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
@@ -102,3 +103,90 @@ def test_unban_route_refuses_input_that_is_not_an_ip(
         "/admin/unban-ip", json={"ip": garbage}, environ_base=LOCALHOST
     )
     assert response.status_code == 400
+
+
+OUTSIDER = {"REMOTE_ADDR": "10.0.0.6"}
+
+
+@pytest.mark.parametrize("name", ["simple_app", "advanced_app"])
+def test_emergency_switch_refuses_outsiders_and_keeps_the_admin(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_example(name, monkeypatch)
+    client = module.app.test_client()
+    assert client.get("/", environ_base=OUTSIDER).status_code == 200
+
+    on = client.put(
+        "/admin/emergency-mode", json={"enable": True}, environ_base=LOCALHOST
+    )
+    assert on.status_code == 200
+    assert on.get_json()["details"]["emergency_mode"] is True
+    assert module.security_config.emergency_mode is True
+    assert client.get("/", environ_base=OUTSIDER).status_code == 503
+    assert client.get("/", environ_base=LOCALHOST).status_code == 200
+
+    off = client.put(
+        "/admin/emergency-mode", json={"enable": False}, environ_base=LOCALHOST
+    )
+    assert off.get_json()["details"]["emergency_mode"] is False
+    assert client.get("/", environ_base=OUTSIDER).status_code == 200
+    assert client.get("/", environ_base=LOCALHOST).status_code == 200
+
+
+@pytest.mark.parametrize("body", [{"enable": "yes"}, {"enable": 1}, {}, [True]])
+@pytest.mark.parametrize("name", ["simple_app", "advanced_app"])
+def test_emergency_switch_refuses_a_body_that_is_not_a_boolean(
+    name: str, body: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_example(name, monkeypatch)
+    response = module.app.test_client().put(
+        "/admin/emergency-mode", json=body, environ_base=LOCALHOST
+    )
+    assert response.status_code == 400
+    assert module.security_config.emergency_mode is False
+
+
+@pytest.mark.parametrize("name", ["simple_app", "advanced_app"])
+def test_emergency_switch_defers_to_the_dashboard_when_dynamic_rules_are_on(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_example(name, monkeypatch)
+    config = module.security_config
+    config.agent_api_key = "test-key"
+    config.enable_agent = True
+    config.enable_dynamic_rules = True
+    response = module.app.test_client().put(
+        "/admin/emergency-mode", json={"enable": True}, environ_base=LOCALHOST
+    )
+    assert response.status_code == 409
+    assert b"dashboard" in response.data
+    assert config.emergency_mode is False
+
+
+def _stats(client: Any) -> dict[str, Any]:
+    body = client.get("/admin/stats", environ_base=LOCALHOST).get_json()
+    payload: dict[str, Any] = body.get("details", body)
+    return payload
+
+
+@pytest.mark.parametrize("name", ["simple_app", "advanced_app"])
+def test_stats_come_from_the_engine_and_carry_no_invented_numbers(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_example(name, monkeypatch)
+    client = module.app.test_client()
+    client.get("/", environ_base=LOCALHOST)
+    bans = ip_ban_manager_for(module.security_config)
+    before = _stats(client)
+    bans.ban_ip(BANNED_IP, 300, "test")
+    after = _stats(client)
+    bans.unban_ip(BANNED_IP)
+    lifted = _stats(client)
+
+    assert BANNED_IP not in before["banned_ips"]
+    assert BANNED_IP in after["banned_ips"]
+    assert BANNED_IP not in lifted["banned_ips"]
+    assert not {"total_requests", "blocked_requests", "suspicious_activities"} & set(
+        after
+    )
+    assert after["active_rules"]["rate_limit"] == module.security_config.rate_limit

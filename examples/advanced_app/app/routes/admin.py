@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime, timezone
 from ipaddress import ip_address
 
@@ -14,6 +15,11 @@ from app.security import guard, security_config
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
+
+DYNAMIC_RULES_OWN_EMERGENCY_MODE = (
+    "this app takes emergency mode from the dashboard's dynamic rules; a local "
+    "switch would be reverted at the next rule update"
+)
 
 
 @bp.route("/unban-ip", methods=["POST"])
@@ -37,34 +43,29 @@ def unban_ip_address() -> ResponseReturnValue:
 @bp.route("/stats")
 @guard.require_ip(whitelist=["127.0.0.1"])
 def get_security_stats() -> ResponseReturnValue:
+    """Reads this process's ban table (IPBanManager.banned_ips), its rate limit
+    windows (RateLimitManager.request_timestamps) and the SecurityConfig rules.
+    The engine keeps no request counters, so none are reported."""
+    now = time.time()
+    windows = RateLimitManager(security_config).request_timestamps
+    banned_ips = sorted(
+        ip
+        for ip, expiry in ip_ban_manager_for(security_config).banned_ips.items()
+        if expiry > now
+    )
+    rate_limit_windows = {key: len(window) for key, window in windows.items() if window}
+    active_rules = {
+        "rate_limit": security_config.rate_limit,
+        "rate_limit_window": security_config.rate_limit_window,
+        "auto_ban_threshold": security_config.auto_ban_threshold,
+        "blocked_countries": list(security_config.blocked_countries),
+        "block_cloud_providers": sorted(security_config.block_cloud_providers or ()),
+    }
     return jsonify(
         stats_response(
-            total_requests=1500,
-            blocked_requests=75,
-            banned_ips=["192.168.1.100", "10.0.0.50"],
-            rate_limited_ips={
-                "192.168.1.200": 5,
-                "172.16.0.10": 3,
-            },
-            suspicious_activities=[
-                {
-                    "ip": "192.168.1.100",
-                    "reason": "SQL injection attempt",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                },
-                {
-                    "ip": "10.0.0.50",
-                    "reason": "Rapid requests",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                },
-            ],
-            active_rules={
-                "rate_limit": 30,
-                "rate_window": 60,
-                "auto_ban_threshold": 5,
-                "blocked_countries": ["XX"],
-                "blocked_clouds": ["AWS", "GCP", "Azure"],
-            },
+            banned_ips=banned_ips,
+            rate_limit_windows=rate_limit_windows,
+            active_rules=active_rules,
         )
     )
 
@@ -86,14 +87,33 @@ def clear_security_cache() -> ResponseReturnValue:
 @bp.route("/emergency-mode", methods=["PUT"])
 @guard.require_ip(whitelist=["127.0.0.1"])
 def toggle_emergency_mode() -> ResponseReturnValue:
-    data = request.get_json(silent=True) or {}
-    enable = data.get("enable", False)
-    mode = "enabled" if enable else "disabled"
+    """Switches emergency mode on this process through SecurityConfig.
+
+    Emergency mode has two sources: SecurityConfig.emergency_mode set at startup,
+    or a dynamic rule from the dashboard at runtime. This is the local switch: it
+    changes this process only, so a multi-worker deployment uses the dashboard's
+    dynamic rule. While emergency mode is on only emergency_whitelist is admitted,
+    so enabling adds 127.0.0.1 to keep this admin route reachable.
+    """
+    data = request.get_json(silent=True)
+    enable = data.get("enable") if isinstance(data, dict) else None
+    if not isinstance(enable, bool):
+        return jsonify({"detail": 'The body must be {"enable": true|false}'}), 400
+    if security_config.enable_dynamic_rules:
+        return jsonify({"detail": DYNAMIC_RULES_OWN_EMERGENCY_MODE}), 409
+    if enable and "127.0.0.1" not in security_config.emergency_whitelist:
+        security_config.emergency_whitelist = [
+            *security_config.emergency_whitelist,
+            "127.0.0.1",
+        ]
+    security_config.emergency_mode = enable
+    state = "enabled" if security_config.emergency_mode else "disabled"
     return jsonify(
         message_response(
-            f"Emergency mode {mode}",
+            f"Emergency mode {state}",
             details={
-                "emergency_mode": enable,
+                "emergency_mode": security_config.emergency_mode,
+                "emergency_whitelist": list(security_config.emergency_whitelist),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )
