@@ -163,3 +163,41 @@ def test_separate_slash_and_no_slash_routes_count_against_their_own_key() -> Non
         return "slashed"
 
     assert _statuses(app, ["/a/", "/a/", "/a", "/a"]) == [200, 200, 200, 429]
+
+
+def _two_path_app(shared_handler: bool) -> Flask:
+    app = Flask(__name__)
+    config = SecurityConfig[SyncGuardRequest](
+        enable_redis=False,
+        enable_rate_limiting=True,
+        rate_limit=1000,
+        endpoint_rate_limits={"/login": (3, 60)},
+        passive_mode=False,
+    )
+    FlaskAPIGuard(app, config=config)
+
+    def login() -> str:
+        return "ok"
+
+    def other() -> str:
+        return "ok"
+
+    app.add_url_rule("/login", "login", login)
+    app.add_url_rule(
+        "/other",
+        "login" if shared_handler else "other",
+        login if shared_handler else other,
+    )
+    return app
+
+
+def test_a_limit_follows_the_handler_so_a_second_path_on_it_is_limited_too() -> None:
+    app = _two_path_app(shared_handler=True)
+
+    assert _statuses(app, ["/login"] * 4 + ["/other"]) == [200, 200, 200, 429, 429]
+
+
+def test_a_path_on_its_own_handler_is_not_limited_by_another_paths_key() -> None:
+    app = _two_path_app(shared_handler=False)
+
+    assert _statuses(app, ["/login"] * 4 + ["/other"]) == [200, 200, 200, 429, 200]
