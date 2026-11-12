@@ -15,6 +15,7 @@ from flask import (
 from flask.typing import ResponseReturnValue
 from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
+from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import (
@@ -841,10 +842,16 @@ def admin_stats() -> ResponseReturnValue:
 @admin_bp.route("/clear-cache", methods=["POST"])
 @guard_decorator.require_ip(whitelist=["127.0.0.1"])
 def admin_clear_cache() -> ResponseReturnValue:
+    """Clears all bans and rate limit windows for this app's Redis prefix."""
+    ip_ban_manager_for(security_config).reset()
+    RateLimitManager(security_config).reset()
     return jsonify(
         {
-            "message": "Cache cleared successfully",
-            "details": {"cleared_at": datetime.now(timezone.utc).isoformat()},
+            "message": "Security caches cleared",
+            "details": {
+                "cleared": ["ip_bans", "rate_limit_windows"],
+                "cleared_at": datetime.now(timezone.utc).isoformat(),
+            },
         }
     )
 

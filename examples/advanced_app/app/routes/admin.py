@@ -4,9 +4,11 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 from flask.typing import ResponseReturnValue
 from guard_core.sync.handlers.cloud_handler import cloud_handler_for
+from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
+from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 
 from app.models import message_response, stats_response
-from app.security import guard
+from app.security import guard, security_config
 
 logger = logging.getLogger(__name__)
 
@@ -65,16 +67,13 @@ def get_security_stats() -> ResponseReturnValue:
 @bp.route("/clear-cache", methods=["POST"])
 @guard.require_ip(whitelist=["127.0.0.1"])
 def clear_security_cache() -> ResponseReturnValue:
+    """Clears all bans and rate limit windows for this app's Redis prefix."""
+    ip_ban_manager_for(security_config).reset()
+    RateLimitManager(security_config).reset()
     return jsonify(
         message_response(
             "Security caches cleared",
-            details={
-                "cleared": [
-                    "rate_limit_cache",
-                    "ip_ban_cache",
-                    "geo_cache",
-                ],
-            },
+            details={"cleared": ["ip_bans", "rate_limit_windows"]},
         )
     )
 
