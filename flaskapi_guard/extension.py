@@ -45,6 +45,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.routing import MapAdapter
 from werkzeug.security import safe_join
 
+from flaskapi_guard._declared_path_params import warn_at_first_request
 from flaskapi_guard.adapters import (
     FlaskGuardRequest,
     FlaskGuardResponse,
@@ -120,6 +121,7 @@ class FlaskAPIGuard:
         self._cors_handler: CorsHandler | None = None
         self._app: Flask | None = None
         self._initialized: bool = False
+        self._path_params_checked: bool = False
         self._init_lock = threading.Lock()
         self._guard_response_factory = FlaskResponseFactory()
 
@@ -274,6 +276,7 @@ class FlaskAPIGuard:
         self.last_cleanup = time.time()
         self.rate_limit_handler = RateLimitManager(resolved)
         self._initialized = False
+        self._path_params_checked = False
 
         self._configure_security_headers(resolved)
         self._init_geo_ip_handler()
@@ -326,6 +329,11 @@ class FlaskAPIGuard:
         logger = _present(self.logger, "logger")
         if self._initialized:
             return None
+        if not self._path_params_checked:
+            from flask import current_app
+
+            self._path_params_checked = True
+            warn_at_first_request(current_app, self.guard_decorator)
         try:
             self._initialize_handlers()
         except GuardRedisError as e:
