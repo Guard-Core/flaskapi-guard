@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 from types import ModuleType
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
@@ -121,6 +122,8 @@ def test_emergency_switch_refuses_outsiders_and_keeps_the_admin(
     )
     assert on.status_code == 200
     assert on.get_json()["details"]["emergency_mode"] is True
+    assert on.get_json()["details"]["added_to_emergency_whitelist"] == ["127.0.0.1"]
+    assert on.get_json()["details"]["emergency_whitelist"] == ["127.0.0.1"]
     assert module.security_config.emergency_mode is True
     assert client.get("/", environ_base=OUTSIDER).status_code == 503
     assert client.get("/", environ_base=LOCALHOST).status_code == 200
@@ -129,6 +132,10 @@ def test_emergency_switch_refuses_outsiders_and_keeps_the_admin(
         "/admin/emergency-mode", json={"enable": False}, environ_base=LOCALHOST
     )
     assert off.get_json()["details"]["emergency_mode"] is False
+    assert off.get_json()["details"]["removed_from_emergency_whitelist"] == [
+        "127.0.0.1"
+    ]
+    assert module.security_config.emergency_whitelist == []
     assert client.get("/", environ_base=OUTSIDER).status_code == 200
     assert client.get("/", environ_base=LOCALHOST).status_code == 200
 
@@ -151,10 +158,11 @@ def test_emergency_switch_defers_to_the_dashboard_when_dynamic_rules_are_on(
     name: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     module = _load_example(name, monkeypatch)
+    monkeypatch.setattr("guard_agent.SyncGuardAgentHandler", lambda config: MagicMock())
     config = module.security_config
-    config.agent_api_key = "test-key"
-    config.enable_agent = True
-    config.enable_dynamic_rules = True
+    monkeypatch.setattr(config, "agent_api_key", "test-key")
+    monkeypatch.setattr(config, "enable_agent", True)
+    monkeypatch.setattr(config, "enable_dynamic_rules", True)
     response = module.app.test_client().put(
         "/admin/emergency-mode", json={"enable": True}, environ_base=LOCALHOST
     )
@@ -190,3 +198,23 @@ def test_stats_come_from_the_engine_and_carry_no_invented_numbers(
         after
     )
     assert after["active_rules"]["rate_limit"] == module.security_config.rate_limit
+
+
+@pytest.mark.parametrize("name", ["simple_app", "advanced_app"])
+def test_emergency_switch_leaves_a_whitelist_it_did_not_extend_alone(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_example(name, monkeypatch)
+    monkeypatch.setattr(module.security_config, "emergency_whitelist", ["127.0.0.1"])
+    client = module.app.test_client()
+
+    on = client.put(
+        "/admin/emergency-mode", json={"enable": True}, environ_base=LOCALHOST
+    )
+    off = client.put(
+        "/admin/emergency-mode", json={"enable": False}, environ_base=LOCALHOST
+    )
+
+    assert on.get_json()["details"]["added_to_emergency_whitelist"] == []
+    assert off.get_json()["details"]["removed_from_emergency_whitelist"] == []
+    assert module.security_config.emergency_whitelist == ["127.0.0.1"]
