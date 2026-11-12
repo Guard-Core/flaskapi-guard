@@ -808,15 +808,16 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 @guard_decorator.require_ip(whitelist=["127.0.0.1"])
 def admin_unban_ip() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
-    ip_to_unban = data.get("ip")
-    if not ip_to_unban:
-        return jsonify({"detail": "IP address required"}), 400
+    try:
+        ip_to_unban = str(ip_address(str(data.get("ip", "")).strip()))
+    except (ValueError, AttributeError):
+        return jsonify({"detail": "Not an IP address"}), 400
     # `ip_ban_manager` is the default app's; this app's own manager:
     ip_ban_manager_for(security_config).unban_ip(ip_to_unban)
     return jsonify(
         {
             "message": f"IP {ip_to_unban} has been unbanned",
-            "details": {"unbanned_ip": ip_to_unban},
+            "details": {"action": "unban", "ip": ip_to_unban},
         }
     )
 

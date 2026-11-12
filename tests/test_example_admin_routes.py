@@ -68,3 +68,37 @@ def test_clear_cache_route_stays_behind_the_localhost_gate(
         "/admin/clear-cache", environ_base={"REMOTE_ADDR": "203.0.113.5"}
     )
     assert response.status_code == 403
+
+
+@pytest.mark.parametrize("name", ["simple_app", "advanced_app"])
+def test_unban_route_lifts_the_ban_it_names(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_example(name, monkeypatch)
+    assert module.security_config.redis_prefix != "flaskapi_guard:"
+    client = module.app.test_client()
+    client.get("/", environ_base=LOCALHOST)
+    bans = ip_ban_manager_for(module.security_config)
+    bans.ban_ip(BANNED_IP, 300, "test")
+    assert bans.is_ip_banned(BANNED_IP)
+
+    response = client.post(
+        "/admin/unban-ip", json={"ip": BANNED_IP}, environ_base=LOCALHOST
+    )
+
+    assert response.status_code == 200
+    assert not bans.is_ip_banned(BANNED_IP)
+    assert response.get_json()["details"]["ip"] == BANNED_IP
+
+
+@pytest.mark.parametrize("garbage", ["not-an-ip", "203.0.113.0/24", "", "1.2.3.999"])
+@pytest.mark.parametrize("name", ["simple_app", "advanced_app"])
+def test_unban_route_refuses_input_that_is_not_an_ip(
+    name: str, garbage: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_example(name, monkeypatch)
+    client = module.app.test_client()
+    response = client.post(
+        "/admin/unban-ip", json={"ip": garbage}, environ_base=LOCALHOST
+    )
+    assert response.status_code == 400

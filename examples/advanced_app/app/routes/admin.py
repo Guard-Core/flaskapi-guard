@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone
+from ipaddress import ip_address
 
 from flask import Blueprint, jsonify, request
 from flask.typing import ResponseReturnValue
@@ -19,8 +20,12 @@ bp = Blueprint("admin", __name__, url_prefix="/admin")
 @guard.require_ip(whitelist=["127.0.0.1"])
 def unban_ip_address() -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
-    ip = data.get("ip", "")
-    logger.info(f"Unbanning IP: {ip}")
+    try:
+        ip = str(ip_address(str(data.get("ip", "")).strip()))
+    except (ValueError, AttributeError):
+        return jsonify({"detail": "Not an IP address"}), 400
+    ip_ban_manager_for(security_config).unban_ip(ip)
+    logger.info("Unbanning IP: %s", ip)
     return jsonify(
         message_response(
             f"IP {ip} has been unbanned",
