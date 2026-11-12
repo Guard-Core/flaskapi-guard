@@ -40,12 +40,18 @@ def health_response(status: str = "healthy") -> dict[str, Any]:
 
 def stats_response(
     banned_ips: list[str],
-    rate_limit_windows: dict[str, int],
+    rate_limit_windows: dict[str, int] | None,
+    redis_in_use: bool,
+    redis_prefix: str,
     active_rules: dict[str, Any],
 ) -> dict[str, Any]:
+    """With Redis on, the windows live in Redis under redis_prefix, so
+    rate_limit_windows is None; bans other workers wrote also live in Redis."""
     return {
         "banned_ips": banned_ips,
         "rate_limit_windows": rate_limit_windows,
+        "rate_limit_store": "redis" if redis_in_use else "memory",
+        "redis_prefix": redis_prefix if redis_in_use else None,
         "active_rules": active_rules,
     }
 

@@ -47,17 +47,29 @@ def unban_ip_address() -> ResponseReturnValue:
 @bp.route("/stats")
 @guard.require_ip(whitelist=["127.0.0.1"])
 def get_security_stats() -> ResponseReturnValue:
-    """Reads this process's ban table (IPBanManager.banned_ips), its rate limit
-    windows (RateLimitManager.request_timestamps) and the SecurityConfig rules.
-    The engine keeps no request counters, so none are reported."""
+    """Reads this process's ban table (IPBanManager.banned_ips), its in-memory rate
+    limit windows (RateLimitManager.request_timestamps) and the SecurityConfig
+    rules. With Redis on, the windows live in Redis under redis_prefix and
+    rate_limit_windows is null; bans other workers wrote also live in Redis. The
+    engine keeps no request counters, so none are reported."""
+    redis_in_use = bool(security_config.enable_redis and security_config.redis_url)
     now = time.time()
-    windows = RateLimitManager(security_config).request_timestamps
     banned_ips = sorted(
         ip
         for ip, expiry in ip_ban_manager_for(security_config).banned_ips.items()
         if expiry > now
     )
-    rate_limit_windows = {key: len(window) for key, window in windows.items() if window}
+    rate_limit_windows = (
+        None
+        if redis_in_use
+        else {
+            key: len(window)
+            for key, window in RateLimitManager(
+                security_config
+            ).request_timestamps.items()
+            if window
+        }
+    )
     active_rules = {
         "rate_limit": security_config.rate_limit,
         "rate_limit_window": security_config.rate_limit_window,
@@ -69,6 +81,8 @@ def get_security_stats() -> ResponseReturnValue:
         stats_response(
             banned_ips=banned_ips,
             rate_limit_windows=rate_limit_windows,
+            redis_in_use=redis_in_use,
+            redis_prefix=security_config.redis_prefix,
             active_rules=active_rules,
         )
     )

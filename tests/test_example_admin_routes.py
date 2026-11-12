@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+import redis
 from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
 from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 
@@ -17,6 +18,14 @@ EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 LOCALHOST = {"REMOTE_ADDR": "127.0.0.1"}
 BANNED_IP = "203.0.113.5"
 WINDOWED_IP = "203.0.113.6"
+
+
+def _redis_window_keys(config: Any, ip: str) -> list[str]:
+    client = redis.Redis.from_url(config.redis_url, decode_responses=True)
+    try:
+        return sorted(client.scan_iter(f"{config.redis_prefix}rate_limit:rate:{ip}*"))
+    finally:
+        client.close()
 
 
 def _load_example(name: str, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
@@ -51,12 +60,15 @@ def test_clear_cache_route_drops_the_bans_and_the_rate_windows(
     windows.request_timestamps[WINDOWED_IP].append(time.time())
     assert bans.is_ip_banned(BANNED_IP)
     assert windows.request_timestamps[WINDOWED_IP]
+    assert client.get("/", environ_base=LOCALHOST).status_code == 200
+    assert _redis_window_keys(module.security_config, "127.0.0.1")
 
     response = client.post("/admin/clear-cache", environ_base=LOCALHOST)
 
     assert response.status_code == 200
     assert not bans.is_ip_banned(BANNED_IP)
     assert not windows.request_timestamps.get(WINDOWED_IP)
+    assert not _redis_window_keys(module.security_config, "127.0.0.1")
     assert b"geo_cache" not in response.data
 
 
@@ -198,6 +210,41 @@ def test_stats_come_from_the_engine_and_carry_no_invented_numbers(
         after
     )
     assert after["active_rules"]["rate_limit"] == module.security_config.rate_limit
+
+
+@pytest.mark.parametrize("name", ["simple_app", "advanced_app"])
+def test_stats_name_redis_as_the_store_when_redis_holds_the_windows(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_example(name, monkeypatch)
+    client = module.app.test_client()
+    for _ in range(5):
+        assert client.get("/", environ_base=LOCALHOST).status_code == 200
+    assert _redis_window_keys(module.security_config, "127.0.0.1")
+
+    stats = _stats(client)
+
+    assert stats["rate_limit_store"] == "redis"
+    assert stats["rate_limit_windows"] is None
+    assert stats["redis_prefix"] == module.security_config.redis_prefix
+
+
+@pytest.mark.parametrize("name", ["simple_app", "advanced_app"])
+def test_stats_count_the_process_windows_when_redis_is_off(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_example(name, monkeypatch)
+    monkeypatch.setattr(module.security_config, "enable_redis", False)
+    client = module.app.test_client()
+    RateLimitManager(module.security_config).request_timestamps[WINDOWED_IP].append(
+        time.time()
+    )
+
+    stats = _stats(client)
+
+    assert stats["rate_limit_store"] == "memory"
+    assert stats["rate_limit_windows"][WINDOWED_IP] == 1
+    assert stats["redis_prefix"] is None
 
 
 @pytest.mark.parametrize("name", ["simple_app", "advanced_app"])
