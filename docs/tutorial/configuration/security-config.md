@@ -91,7 +91,38 @@ Rate Limiting Settings
 |-------|------|---------|-------------|
 | `rate_limit` | int | 120 | Maximum requests per rate_limit_window |
 | `rate_limit_window` | int | 60 | Rate limiting time window in seconds |
-| `endpoint_rate_limits` | dict[str, tuple[int, int]] | {} | Per-endpoint rate limits {endpoint: (requests, window)} |
+| `endpoint_rate_limits` | dict[str, tuple[int, int]] | {} | Per-endpoint rate limits {path: (requests, window)}; a limit follows the view, not the path (see Endpoint Rate Limits below) |
+
+Endpoint Rate Limits
+--------------------
+
+A limit follows the handler, not the path. The extension resolves every `endpoint_rate_limits` key through its own router, and a request matches a key when it reaches the same view with the same path parameters, so a concrete-id key stays per resource. Two paths on one view share one budget: `/login` and `/signin` below are one view function, so a limit set under either key counts both, and a stacked path cannot get a fresh budget. `/signup` has its own view, so its limit is its own. A generic view stacked on many paths shares one budget across all of them, so give each limited path its own view. A key that resolves to no route falls back to the normalized path. See the 5.0.0 release note "An endpoint limit follows the handler, not the path".
+
+```python
+from flask import Flask
+from flaskapi_guard import SecurityConfig
+
+app = Flask(__name__)
+
+
+@app.route("/login")
+@app.route("/signin")
+def sign_in():
+    return {"page": "sign in"}
+
+
+@app.route("/signup")
+def sign_up():
+    return {"page": "sign up"}
+
+
+config = SecurityConfig(
+    endpoint_rate_limits={
+        "/login": (5, 60),
+        "/signup": (3, 60),
+    },
+)
+```
 
 Agent Settings
 --------------
