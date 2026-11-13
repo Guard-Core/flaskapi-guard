@@ -8,6 +8,7 @@ from typing import TypeGuard, TypeVar
 
 from flask import Flask, Request, Response, g
 from flask.sansio.blueprints import Blueprint
+from guard_core._misconfiguration_kinds import Problem
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
@@ -45,7 +46,10 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.routing import MapAdapter
 from werkzeug.security import safe_join
 
-from flaskapi_guard._declared_path_params import report_declared_path_params
+from flaskapi_guard._declared_path_params import (
+    declared_path_param_problems,
+    report_declared_path_params,
+)
 from flaskapi_guard.adapters import (
     FlaskGuardRequest,
     FlaskGuardResponse,
@@ -121,7 +125,7 @@ class FlaskAPIGuard:
         self._cors_handler: CorsHandler | None = None
         self._app: Flask | None = None
         self._initialized: bool = False
-        self._path_params_checked: bool = False
+        self._declared_problems: list[Problem] | None = None
         self._init_lock = threading.Lock()
         self._guard_response_factory = FlaskResponseFactory()
 
@@ -276,7 +280,7 @@ class FlaskAPIGuard:
         self.last_cleanup = time.time()
         self.rate_limit_handler = RateLimitManager(resolved)
         self._initialized = False
-        self._path_params_checked = False
+        self._declared_problems = None
 
         self._configure_security_headers(resolved)
         self._init_geo_ip_handler()
@@ -329,13 +333,20 @@ class FlaskAPIGuard:
         logger = _present(self.logger, "logger")
         if self._initialized:
             return None
-        if not self._path_params_checked:
-            from flask import current_app
+        problems = self._declared_problems
+        first = problems is None
+        from flask import current_app
 
-            report_declared_path_params(
-                _present(self.config, "config"), current_app, self.guard_decorator
-            )
-            self._path_params_checked = True
+        if problems is None:
+            problems = declared_path_param_problems(current_app, self.guard_decorator)
+            self._declared_problems = problems
+        report_declared_path_params(
+            _present(self.config, "config"),
+            current_app,
+            self.guard_decorator,
+            problems=problems,
+            first=first,
+        )
         try:
             self._initialize_handlers()
         except GuardRedisError as e:

@@ -32,13 +32,23 @@ def report_declared_path_params(
     config: SecurityConfig[SyncGuardRequest],
     app: Flask,
     guard_decorator: BaseSecurityDecorator | None,
+    *,
+    problems: list[Problem] | None = None,
+    first: bool = True,
 ) -> None:
     """The one report point, at the first request, when every route exists (Flask
-    refuses new routes after it): fail_on_misconfiguration decides between a raise,
-    which fails every request until the app is fixed, and one warning."""
-    report_misconfigurations(
-        config,
-        declared_path_param_problems(app, guard_decorator),
-        logger=config_logger,
-        stacklevel=2,
-    )
+    refuses new routes after it). With fail_on_misconfiguration every request
+    raises a fresh error from the cached problems, never a stored exception (its
+    traceback would grow on each raise), and the list is logged once; without it
+    the first request logs one warning per problem."""
+    if problems is None:
+        problems = declared_path_param_problems(app, guard_decorator)
+    if not problems:
+        return
+    if first and config.fail_on_misconfiguration:
+        config_logger.error(
+            "Every request is refused until this is fixed: %s",
+            "; ".join(problems),
+        )
+    if first or config.fail_on_misconfiguration:
+        report_misconfigurations(config, problems, logger=config_logger, stacklevel=2)

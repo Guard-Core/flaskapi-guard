@@ -3,11 +3,15 @@ detection_exclusion path param, and the kind travels with every report."""
 
 import logging
 import pathlib
+from collections.abc import Iterator
 
 import pytest
+from flask import Flask
 from guard_core._misconfiguration_kinds import MisconfigurationError
+from werkzeug.routing import Rule
 
 import flaskapi_guard
+from flaskapi_guard import FlaskAPIGuard
 from tests.test_declared_path_params import (
     LOGGER,
     Declare,
@@ -108,3 +112,69 @@ def test_the_adapter_holds_no_copy_of_the_engine_text() -> None:
         for p in root.rglob("*.py")
         if "@detection_exclusion(path_params=...) on route" in p.read_text()
     ]
+
+
+def _guard_of(app: Flask) -> FlaskAPIGuard:
+    guard = app.extensions["flaskapi_guard"]["guard"]
+    assert isinstance(guard, FlaskAPIGuard)
+    return guard
+
+
+def test_three_refusals_are_three_distinct_errors_of_equal_traceback_depth() -> None:
+    app = _app(declare_missing, flag=True)
+    app.config["PROPAGATE_EXCEPTIONS"] = True
+    errors: list[MisconfigurationError] = []
+
+    for _ in range(3):
+        with pytest.raises(MisconfigurationError) as refused:
+            app.test_client().get("/items/7")
+        errors.append(refused.value)
+
+    assert len({id(error) for error in errors}) == 3
+    depths: list[int] = []
+    for error in errors:
+        depth, trace = 0, error.__traceback__
+        while trace is not None:
+            depth, trace = depth + 1, trace.tb_next
+        depths.append(depth)
+    assert len(set(depths)) == 1
+
+
+def test_the_problems_are_computed_once_and_logged_once_at_the_first_failure(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    app = _app(declare_missing, flag=True)
+    app.config["PROPAGATE_EXCEPTIONS"] = True
+    walks: list[int] = []
+    real = app.url_map.iter_rules
+
+    def counting(endpoint: str | None = None) -> Iterator[Rule]:
+        walks.append(1)
+        return real(endpoint)
+
+    app.url_map.__dict__["iter_rules"] = counting
+    caplog.set_level(logging.ERROR, logger=LOGGER)
+
+    for _ in range(3):
+        with pytest.raises(MisconfigurationError):
+            app.test_client().get("/items/7")
+
+    assert len(walks) == 1
+    logged = [r for r in caplog.records if "@detection_exclusion" in r.getMessage()]
+    assert len(logged) == 1
+
+
+def test_while_failing_neither_redis_nor_agent_initialization_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = _app(declare_missing, flag=True)
+    app.config["PROPAGATE_EXCEPTIONS"] = True
+    guard = _guard_of(app)
+    runs: list[int] = []
+    monkeypatch.setattr(guard, "_initialize_handlers", lambda: runs.append(1))
+
+    for _ in range(3):
+        with pytest.raises(MisconfigurationError):
+            app.test_client().get("/items/7")
+
+    assert runs == []
