@@ -15,7 +15,7 @@ from guard_core.sync.handlers.behavior_handler import BehaviorRule
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
-from flaskapi_guard.adapters import FlaskGuardResponse
+from flaskapi_guard.adapters import FlaskGuardRequest, FlaskGuardResponse
 from flaskapi_guard.extension import FlaskAPIGuard
 
 REDIS_URL = os.getenv("REDIS_URL") or "redis://localhost:6379"
@@ -51,10 +51,10 @@ def test_get_endpoint_id_with_route() -> None:
     mock_view_func.__module__ = "test_module"
     mock_view_func.__qualname__ = "test_function"
 
-    from flask import g
-
     with app.test_request_context("/test"):
-        g.guard_endpoint_id = "test_module.test_function"
+        FlaskGuardRequest(
+            mock_request
+        ).state.guard_endpoint_id = "test_module.test_function"
         endpoint_id = guard._get_endpoint_id(mock_request)
         assert endpoint_id == "test_module.test_function"
 

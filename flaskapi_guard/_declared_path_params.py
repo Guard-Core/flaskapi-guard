@@ -12,14 +12,15 @@ from guard_core.sync.adapter_support import (
 from guard_core.sync.decorators.base import BaseSecurityDecorator, RouteConfig
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 
+from flaskapi_guard._view_routes import route_ids_of_view
+
 
 def _route_configs(
     app: Flask, guard_decorator: BaseSecurityDecorator
 ) -> Iterator[tuple[str, str, RouteConfig | None]]:
     for rule in app.url_map.iter_rules():
         view = app.view_functions.get(rule.endpoint)
-        route_id = getattr(view, "_guard_route_id", None)
-        if route_id:
+        for _, route_id in route_ids_of_view(view, None):
             yield rule.rule, route_id, guard_decorator.get_route_config(route_id)
 
 

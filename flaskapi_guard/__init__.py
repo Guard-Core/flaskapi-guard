@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from guard_core import SecurityConfig
 from guard_core.sync import endpoint_rate_limit_key_problems, release_app
 from guard_core.sync.adapter_support import register_adapter
-from guard_core.sync.decorators import RouteConfig, SecurityDecorator
+from guard_core.sync.decorators import RouteConfig
 from guard_core.sync.handlers.behavior_handler import BehaviorRule, BehaviorTracker
 from guard_core.sync.handlers.ipban_handler import IPBanManager, ip_ban_manager
 from guard_core.sync.handlers.security_headers_handler import (
@@ -23,6 +23,7 @@ from guard_core.sync.protocols.request_protocol import (
 )
 from guard_core.sync.protocols.response_protocol import GuardResponse
 
+from flaskapi_guard._decorator_adoption import SecurityDecorator
 from flaskapi_guard.adapters import FlaskGuardRequest, FlaskGuardResponse
 from flaskapi_guard.extension import FlaskAPIGuard
 
