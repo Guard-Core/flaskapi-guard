@@ -39,5 +39,5 @@ def test_decorator_false_under_middleware_true_starts_and_answers(
             second = client.get("/geo", headers=headers)
 
     assert (first.status_code, second.status_code) == (200, 200)
-    assert reported_before_any_request == 0
+    assert reported_before_any_request == 1
     assert caplog.text.count("no GeoIP database") == 1
