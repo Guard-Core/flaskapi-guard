@@ -1,14 +1,12 @@
 from collections.abc import Iterator
 
 from flask import Flask
-from guard_core._misconfiguration import (
-    config_logger,
-    report_declared_path_param_problems,
-)
-from guard_core._misconfiguration_kinds import Problem
 from guard_core.models import SecurityConfig
-from guard_core.sync._utils.route_gate import (
+from guard_core.sync.adapter_support import (
+    Problem,
+    config_logger,
     detection_exclusion_path_param_problems,
+    report_declared_path_param_problems,
     route_unknown_to_decorator_problem,
 )
 from guard_core.sync.decorators.base import BaseSecurityDecorator, RouteConfig
