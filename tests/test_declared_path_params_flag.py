@@ -178,3 +178,42 @@ def test_while_failing_neither_redis_nor_agent_initialization_runs(
             app.test_client().get("/items/7")
 
     assert runs == []
+
+
+def test_the_reporter_walks_the_app_itself_when_it_is_given_no_problems(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from flaskapi_guard._declared_path_params import report_declared_path_params
+
+    app = _app(declare_missing, flag=False)
+    guard = _guard_of(app)
+    caplog.set_level(logging.WARNING, logger=LOGGER)
+
+    assert guard.config is not None
+    report_declared_path_params(guard.config, app, guard.guard_decorator)
+
+    assert (
+        len([r for r in caplog.records if "@detection_exclusion" in r.getMessage()])
+        == 1
+    )
+
+
+def test_a_later_request_with_the_flag_off_reports_nothing_again(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from flaskapi_guard._declared_path_params import (
+        declared_path_param_problems,
+        report_declared_path_params,
+    )
+
+    app = _app(declare_missing, flag=False)
+    guard = _guard_of(app)
+    problems = declared_path_param_problems(app, guard.guard_decorator)
+    caplog.set_level(logging.WARNING, logger=LOGGER)
+
+    assert guard.config is not None
+    report_declared_path_params(
+        guard.config, app, guard.guard_decorator, problems=problems, first=False
+    )
+
+    assert [r for r in caplog.records if "@detection_exclusion" in r.getMessage()] == []
