@@ -74,7 +74,7 @@ Decorators stack top-down and each writes a per-route `RouteConfig` the extensio
 
 * Custom callables (`custom_request_check`, `custom_response_modifier`, route validators, `auth_verifier`) must be plain sync functions; async callables raise `TypeError` under WSGI.
 * Per-request state lives on `flask.g` (guard state attributes are attached to the request object by the extension).
-* IP extraction is proxy-aware via `request.remote_addr` / `request.access_route`.
+* IP extraction is proxy-aware via `request.remote_addr` plus the `X-Forwarded-For` header (resolved for `trusted_proxies`; `request.access_route` is not read).
 * Redis (`redis.Redis`) and outbound HTTP (`httpx.Client`) are synchronous, mirroring guard-core's sync handlers.
 
 ## Footguns
