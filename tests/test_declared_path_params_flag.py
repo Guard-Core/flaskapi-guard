@@ -7,7 +7,7 @@ from collections.abc import Iterator
 
 import pytest
 from flask import Flask
-from guard_core._misconfiguration_kinds import MisconfigurationError
+from guard_core.exceptions import MisconfigurationError
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from werkzeug.routing import Rule
 
