@@ -169,7 +169,9 @@ def test_init_app_registers_the_agent_for_exit_once(
 
     FlaskAPIGuard(Flask(__name__), config=config)
 
-    assert len([args for args in registered if args[1] is handler]) == 1
+    assert (
+        len([args for args in registered if len(args) > 1 and args[1] is handler]) == 1
+    )
 
 
 def _running_handler() -> Mock:
