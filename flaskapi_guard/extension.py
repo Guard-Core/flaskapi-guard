@@ -307,7 +307,6 @@ class FlaskAPIGuard:
 
     def _initialize_handlers(self) -> None:
         handler_initializer = _present(self.handler_initializer, "handler_initializer")
-        handler_initializer.guard_decorator = self.guard_decorator
         handler_initializer.initialize_redis_handlers()
         self.geo_ip_handler = handler_initializer.geo_ip_handler
         handler_initializer.initialize_agent_integrations()
@@ -324,10 +323,14 @@ class FlaskAPIGuard:
         return unwrap_response(guard_response)
 
     def _ensure_initialized(self) -> Response | None:
-        if self._initialized:
-            return None
-        with self._init_lock:
-            return self._initialize_handlers_once()
+        if not self._initialized:
+            with self._init_lock:
+                failure = self._initialize_handlers_once()
+            if not self._initialized:
+                return failure
+        if self.handler_initializer is not None:
+            self.handler_initializer.complete_decorator_adoption()
+        return None
 
     def _initialize_handlers_once(self) -> Response | None:
         logger = _present(self.logger, "logger")
@@ -386,19 +389,29 @@ class FlaskAPIGuard:
     def set_decorator_handler(
         self, decorator_handler: BaseSecurityDecorator | None
     ) -> None:
+        # The engine goes first: it can raise, and then nothing here changes. The
+        # contexts bind after it returns, so a request on another thread never sees
+        # the decorator before its ban manager is injected.
+        initializer = self.handler_initializer
+        if initializer is not None:
+            initializer.adopt_decorator(decorator_handler)
+            self.geo_ip_handler = initializer.geo_ip_handler
         self.guard_decorator = decorator_handler
         if self.route_resolver:
             self.route_resolver.context.guard_decorator = decorator_handler
         if self.behavioral_processor:
-            self.behavioral_processor.context.guard_decorator = decorator_handler
+            behavioral = self.behavioral_processor.context
+            behavioral.guard_decorator = decorator_handler
+            if initializer is not None:
+                behavioral.behavior_tracker = initializer.behavior_tracker
         if self.response_factory:
             self.response_factory.context.guard_decorator = decorator_handler
-        if self.handler_initializer:
-            self.handler_initializer.guard_decorator = decorator_handler
         if self._app is not None:
             ext = self._app.extensions.get("flaskapi_guard")
             if isinstance(ext, dict):
                 ext["guard_decorator"] = decorator_handler
+        if initializer is not None and self._initialized:
+            initializer.complete_decorator_adoption()
 
     @property
     def guard_response_factory(self) -> FlaskResponseFactory:

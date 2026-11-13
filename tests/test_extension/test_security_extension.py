@@ -9,7 +9,6 @@ from flask import Flask, Response
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.geo_ip_protocol import GeoIPHandler
-from guard_core.sync.decorators.base import BaseSecurityDecorator
 from guard_core.sync.detection_result import DetectionResult
 from guard_core.sync.handlers.cloud_handler import cloud_handler_for
 from guard_core.sync.handlers.ipban_handler import ip_ban_manager_for
@@ -20,6 +19,7 @@ from guard_core.sync.handlers.suspatterns_handler import sus_patterns_manager_fo
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from redis.exceptions import RedisError
 
+from flaskapi_guard import SecurityDecorator
 from flaskapi_guard.adapters import FlaskGuardRequest, FlaskGuardResponse
 from flaskapi_guard.extension import FlaskAPIGuard
 
@@ -1419,7 +1419,7 @@ def test_set_decorator_handler() -> None:
     app.config["TESTING"] = True
     guard = FlaskAPIGuard(app, config=config)
 
-    mock_decorator = MagicMock(spec=BaseSecurityDecorator)
+    mock_decorator = SecurityDecorator(config)
     guard.set_decorator_handler(mock_decorator)
 
     assert guard.guard_decorator is mock_decorator
