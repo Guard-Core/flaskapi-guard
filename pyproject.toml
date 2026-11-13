@@ -50,7 +50,7 @@ dev = [
     "deptry",
     "guard-agent",
     "guard-core[cloud,geo,redis]",
-    "gunicorn",
+    "gunicorn>=22.0.0",
     "httpx",
     "matplotlib; python_full_version >= '3.11'",
     "mypy",

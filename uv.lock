@@ -1323,6 +1323,7 @@ source = { editable = "." }
 dependencies = [
     { name = "flask" },
     { name = "guard-core" },
+    { name = "gunicorn" },
     { name = "werkzeug" },
 ]
 
@@ -1335,7 +1336,6 @@ dev = [
     { name = "deptry" },
     { name = "guard-agent" },
     { name = "guard-core", extra = ["cloud", "geo", "redis"] },
-    { name = "gunicorn" },
     { name = "httpx" },
     { name = "matplotlib", marker = "python_full_version >= '3.11'" },
     { name = "mypy" },
@@ -1385,7 +1385,7 @@ requires-dist = [
     { name = "guard-core", extras = ["cloud", "geo", "redis"], marker = "extra == 'dev'" },
     { name = "guard-core", extras = ["geo"], marker = "extra == 'geo'" },
     { name = "guard-core", extras = ["redis"], marker = "extra == 'redis'" },
-    { name = "gunicorn", marker = "extra == 'dev'" },
+    { name = "gunicorn", specifier = ">=22.0.0" },
     { name = "httpx", marker = "extra == 'dev'" },
     { name = "matplotlib", marker = "python_full_version >= '3.11' and extra == 'dev'" },
     { name = "mypy", marker = "extra == 'dev'" },
