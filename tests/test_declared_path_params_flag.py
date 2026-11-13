@@ -217,3 +217,17 @@ def test_a_later_request_with_the_flag_off_reports_nothing_again(
     )
 
     assert [r for r in caplog.records if "@detection_exclusion" in r.getMessage()] == []
+
+
+def test_flask_refuses_late_routes_after_the_first_request() -> None:
+    # The cached path-param problems are only sound while Flask refuses new routes
+    # once a request was handled (flask/sansio/app.py _check_setup_finished).
+    from flask import Blueprint
+
+    app = _app(declare_missing, flag=False)
+    assert app.test_client().get("/items/7").status_code == 200
+
+    with pytest.raises(AssertionError):
+        app.add_url_rule("/late", "late", lambda: "ok")
+    with pytest.raises(AssertionError):
+        app.register_blueprint(Blueprint("late_bp", __name__))
