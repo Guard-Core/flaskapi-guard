@@ -8,13 +8,16 @@ from typing import TypeGuard, TypeVar
 
 from flask import Flask, Request, Response, g
 from flask.sansio.blueprints import Blueprint
-from guard_core._misconfiguration_kinds import Problem
 from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync import apply_security_headers_settings
-from guard_core.sync._utils.app_scope import hold_app_scope, release_app_scope
-from guard_core.sync._utils.sampling import observe_sampled_key
+from guard_core.sync.adapter_support import (
+    Problem,
+    hold_app_scope,
+    observe_sampled_key,
+    release_app_scope,
+)
 from guard_core.sync.core.behavioral import BehavioralContext, BehavioralProcessor
 from guard_core.sync.core.bypass import BypassContext, BypassHandler
 from guard_core.sync.core.checks.pipeline import SecurityCheckPipeline
