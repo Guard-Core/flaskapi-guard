@@ -25,7 +25,6 @@ classifiers = [
 dependencies = [
     "flask>=3.1.3",
     "guard-core>=5.0.0,<6",
-    "gunicorn>=22.0.0",
     "werkzeug>=3.1.9",
 ]
 
@@ -54,6 +53,7 @@ dev = [
     "deptry",
     "guard-agent",
     "guard-core[cloud,geo,redis]",
+    "gunicorn>=22.0.0",
     "httpx",
     "matplotlib; python_full_version >= '3.11'",
     "mypy",

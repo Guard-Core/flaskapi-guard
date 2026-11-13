@@ -10,6 +10,7 @@ from guard_agent.models import AgentConfig
 from guard_core.models import SecurityConfig
 from guard_core.sync.decorators.base import RouteConfig
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
+from werkzeug.exceptions import NotFound
 
 from flaskapi_guard import FlaskAPIGuard
 from flaskapi_guard.adapters import FlaskGuardRequest, FlaskResponseFactory
@@ -141,10 +142,10 @@ def test_a_missing_component_raises_instead_of_being_assumed(
             call(guard)
 
 
-def test_a_request_without_an_endpoint_raises_instead_of_being_assumed() -> None:
+def test_a_request_without_an_endpoint_raises_the_routing_exception() -> None:
     app, guard = _initialized_guard()
 
-    with app.test_request_context("/"), pytest.raises(RuntimeError, match="endpoint"):
+    with app.test_request_context("/"), pytest.raises(NotFound):
         guard._call_view(object())
 
 

@@ -904,7 +904,7 @@ FlaskAPI Guard is a direct port of [FastAPI Guard](https://github.com/Guard-Core
 | **HTTP client** | `httpx.AsyncClient` | `httpx.Client` (sync) |
 | **Request object** | `starlette.requests.Request` | `flask.request` (Werkzeug) |
 | **Response object** | `starlette.responses.Response` | `flask.Response` (Werkzeug) |
-| **IP extraction** | `request.client.host` | `request.remote_addr` / `request.access_route` |
+| **IP extraction** | `request.client.host` | `request.remote_addr`, resolved through `X-Forwarded-For` for trusted proxies |
 | **Custom callables** | `async def check(request) -> Response \| None` | `def check(request) -> Response \| None` |
 
 ___

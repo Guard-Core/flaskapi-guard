@@ -109,3 +109,18 @@ config = SecurityConfig(
 ```
 
 This prevents IP spoofing attacks via X-Forwarded-For header manipulation.
+
+___
+
+Upgrading to 5.0.0
+------------------
+
+guard-core 5.0.0 starts with `fail_on_misconfiguration=True`, so a misconfiguration that older releases only logged now stops the app. A test suite that builds its own app with its own `SecurityDecorator` hits it first. The error looks like this, with one line per decorated route:
+
+```text
+MisconfigurationError: 159 misconfigurations:
+- Route '<module.func>' carries a route id that this SecurityDecorator does not know: it was decorated by a different SecurityDecorator instance than the one the middleware uses, so none of its decorators apply. Decorate the route with the SecurityDecorator the middleware uses.
+Set fail_on_misconfiguration=False to start with it anyway.
+```
+
+The routes were decorated by one `SecurityDecorator` and the extension uses another, so the decorators would never run. Build the test app the way production does: import the app's own decorator (or the factory that creates it) and decorate the test routes with that same instance (the instance you give to `set_decorator_handler`, or the only one that holds the routes of the app). Do not set `fail_on_misconfiguration=False` to silence the error: it hides the routes whose decorators are not enforced.

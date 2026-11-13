@@ -116,7 +116,9 @@ def test_a_late_decorators_tracker_gets_redis_once_adoption_completed() -> None:
 
 def test_a_route_country_rule_of_a_late_decorator_builds_the_geo_handler() -> None:
     decorator = _quiet_decorator()
-    _, guard = _started(_config(ipinfo_token="test_token"), decorator)
+    app, guard = _app(_config(ipinfo_token="test_token"), decorator)
+    guard.set_decorator_handler(None)
+    assert app.test_client().get("/plain", headers=HEADERS).status_code == 200
     before = guard.geo_ip_handler
 
     guard.set_decorator_handler(decorator)

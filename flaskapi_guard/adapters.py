@@ -4,12 +4,12 @@ from contextlib import contextmanager
 from typing import IO, Protocol
 
 from flask import Request, Response
-from flask.ctx import _AppCtxGlobals
 from guard_core.exceptions import BodyReadStalledError
 from guard_core.protocols.request_protocol import GuardRequestHeaders
 from guard_core.protocols.response_protocol import GuardResponse, GuardResponseHeaders
 from werkzeug.exceptions import RequestEntityTooLarge
 
+_STATE_G_KEY = "_flaskapi_guard_state"
 _READ_CHUNK_BYTES = 65536
 _SERVER_SOCKET_KEYS = ("werkzeug.socket", "gunicorn.socket")
 
@@ -68,12 +68,12 @@ class _ReplayStream:
 
 @contextmanager
 def _idle_socket_timeout(
-    environ: Mapping[str, _TimeoutSocket], idle_timeout: float
+    environ: Mapping[str, _TimeoutSocket], idle_timeout: float | None
 ) -> Iterator[None]:
     server_socket = next(
         (environ[key] for key in _SERVER_SOCKET_KEYS if key in environ), None
     )
-    if server_socket is None:
+    if server_socket is None or idle_timeout is None:
         yield
         return
     previous = server_socket.gettimeout()
@@ -82,6 +82,41 @@ def _idle_socket_timeout(
         yield
     finally:
         server_socket.settimeout(previous)
+
+
+class _GuardState:
+    """The request state the engine reads and writes: it holds only what the engine
+    or this adapter set during the request. Each value is also set on `flask.g`, for
+    the code that reads it there, but a `g` attribute another hook set (`client_ip`,
+    `is_whitelisted`) is never read back as the guard's own."""
+
+    def __init__(self) -> None:
+        from flask import g
+
+        values: dict[str, object] = g.setdefault(_STATE_G_KEY, {})
+        object.__setattr__(self, "_values", values)
+
+    def __getattr__(self, name: str) -> object:
+        try:
+            value: object = object.__getattribute__(self, "_values")[name]
+        except KeyError:
+            raise AttributeError(name) from None
+        return value
+
+    def __setattr__(self, name: str, value: object) -> None:
+        from flask import g
+
+        object.__getattribute__(self, "_values")[name] = value
+        setattr(g, name, value)
+
+    def __delattr__(self, name: str) -> None:
+        from flask import g
+
+        try:
+            del object.__getattribute__(self, "_values")[name]
+        except KeyError:
+            raise AttributeError(name) from None
+        g.pop(name, None)
 
 
 class FlaskGuardRequest:
@@ -135,14 +170,12 @@ class FlaskGuardRequest:
     def read_body_prefix(self, max_bytes: int) -> bytes:
         if max_bytes <= 0:
             return b""
-        return _empty_when_oversize(lambda: self._request.get_data()[:max_bytes])
+        return _empty_when_oversize(lambda: self._read_prefix(max_bytes, None))
 
     def read_body_prefix_until_idle(self, max_bytes: int, idle_timeout: float) -> bytes:
-        return _empty_when_oversize(
-            lambda: self._read_prefix_until_idle(max_bytes, idle_timeout)
-        )
+        return _empty_when_oversize(lambda: self._read_prefix(max_bytes, idle_timeout))
 
-    def _read_prefix_until_idle(self, max_bytes: int, idle_timeout: float) -> bytes:
+    def _read_prefix(self, max_bytes: int, idle_timeout: float | None) -> bytes:
         if max_bytes <= 0:
             return b""
         cached = getattr(self._request, "_cached_data", None)
@@ -174,10 +207,8 @@ class FlaskGuardRequest:
         self._request.__dict__["stream"] = _ReplayStream(prefix, stream)
 
     @property
-    def state(self) -> _AppCtxGlobals:
-        from flask import g
-
-        return g
+    def state(self) -> _GuardState:
+        return _GuardState()
 
     @property
     def scope(self) -> dict[str, object]:

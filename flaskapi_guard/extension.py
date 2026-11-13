@@ -2,6 +2,7 @@ import logging
 import os
 import threading
 import time
+import weakref
 from collections import OrderedDict
 from collections.abc import Mapping
 from typing import TypeGuard, TypeVar
@@ -49,10 +50,17 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.routing import MapAdapter
 from werkzeug.security import safe_join
 
+from flaskapi_guard._agent_exit import _stop_agent_at_exit
 from flaskapi_guard._declared_path_params import (
     declared_path_param_problems,
     report_declared_path_params,
 )
+from flaskapi_guard._decorator_adoption import (
+    alive_decorators,
+    ambiguity_message,
+    decorators_holding_routes_of,
+)
+from flaskapi_guard._view_routes import endpoint_id_of_view, route_ids_of_view
 from flaskapi_guard.adapters import (
     FlaskGuardRequest,
     FlaskGuardResponse,
@@ -131,6 +139,15 @@ class FlaskAPIGuard:
         self._declared_problems: list[Problem] | None = None
         self._init_lock = threading.Lock()
         self._guard_response_factory = FlaskResponseFactory()
+        self._decorator_unbound_by_the_app = False
+        self._decorator_ambiguity: str | None = None
+        self._alive_decorators_seen: list[weakref.ReferenceType[BaseSecurityDecorator]]
+        self._alive_decorators_seen = []
+        self._decorator_candidates: list[BaseSecurityDecorator] = []
+        self._decorator_missing_warned = False
+        self._several_places_warned: set[object] = set()
+        # one extension serves each further app through a copy of its own
+        self._further_apps: weakref.WeakSet[FlaskAPIGuard] = weakref.WeakSet()
 
         if app is not None:
             self.init_app(app, config=config)
@@ -175,6 +192,7 @@ class FlaskAPIGuard:
             from guard_agent import SyncGuardAgentHandler
 
             self.agent_handler = SyncGuardAgentHandler(agent_config)
+            _stop_agent_at_exit(self.agent_handler, logger)
             logger.info("Guard Agent initialized successfully")
         except ImportError:
             logger.warning(
@@ -272,6 +290,13 @@ class FlaskAPIGuard:
     def init_app(
         self, app: Flask, config: "SecurityConfig[SyncGuardRequest] | None" = None
     ) -> None:
+        if self._app is not None and self._app is not app:
+            # the first app keeps this object's state; a reset here would swap its
+            # config, handlers and pipeline under the requests it is serving
+            further = FlaskAPIGuard(config=config or self.config)
+            self._further_apps.add(further)
+            further.init_app(app)
+            return
         self._resolve_config(config)
         resolved = _present(self.config, "config")
 
@@ -331,14 +356,70 @@ class FlaskAPIGuard:
                 failure = self._initialize_handlers_once()
             if not self._initialized:
                 return failure
+        self._adopt_a_live_decorator()
         if self.handler_initializer is not None:
             self.handler_initializer.complete_decorator_adoption()
         return None
+
+    def _adopt_a_live_decorator(self) -> None:
+        if self.guard_decorator is None and alive_decorators():
+            with self._init_lock:
+                self._adopt_a_live_decorator_unlocked()
+
+    def _adopt_a_live_decorator_unlocked(self) -> None:
+        if self.guard_decorator is not None or self._decorator_unbound_by_the_app:
+            return
+        alive = alive_decorators()
+        if [ref() for ref in self._alive_decorators_seen] != alive:
+            self._alive_decorators_seen = [weakref.ref(d) for d in alive]
+            self._decorator_candidates = decorators_holding_routes_of(
+                _present(self._app, "app"), alive
+            )
+        candidates = self._decorator_candidates
+        if len(candidates) == 1:
+            self.set_decorator_handler(candidates[0])
+        elif len(candidates) > 1:
+            message = ambiguity_message(candidates)
+            if message != self._decorator_ambiguity:
+                self._decorator_ambiguity = message
+                _present(self.logger, "logger").error(message)
+            if _present(self.config, "config").fail_on_misconfiguration:
+                raise RuntimeError(message)
+
+    def _warn_once_decorator_missing(self) -> None:
+        if self.guard_decorator is not None or self._decorator_missing_warned:
+            return
+        self._decorator_missing_warned = True
+        _present(self.logger, "logger").warning(
+            "A decorated view was reached but no decorator is registered with "
+            "FlaskAPIGuard, so its route decorators are not enforced. Build the "
+            "decorator with flaskapi_guard.SecurityDecorator (adopted "
+            "automatically when it is the only one alive) or call "
+            "set_decorator_handler with it."
+        )
+
+    def _warn_once_decorators_in_several_places(
+        self, view: object, route_ids: list[tuple[str, str]]
+    ) -> None:
+        if (
+            len({rid for _, rid in route_ids}) < 2
+            or view in self._several_places_warned
+        ):
+            return
+        self._several_places_warned.add(view)
+        _present(self.logger, "logger").warning(
+            "Route decorators are applied to %s of %s: their rules are not merged, "
+            "only those of %s are enforced. Apply the decorators in one place.",
+            ", ".join(place for place, _ in route_ids),
+            getattr(view, "__qualname__", view),
+            route_ids[0][0],
+        )
 
     def _initialize_handlers_once(self) -> Response | None:
         logger = _present(self.logger, "logger")
         if self._initialized:
             return None
+        self._adopt_a_live_decorator_unlocked()
         problems = self._declared_problems
         first = problems is None
         from flask import current_app
@@ -399,22 +480,29 @@ class FlaskAPIGuard:
         if initializer is not None:
             initializer.adopt_decorator(decorator_handler)
             self.geo_ip_handler = initializer.geo_ip_handler
-        self.guard_decorator = decorator_handler
+        self._decorator_unbound_by_the_app = decorator_handler is None
+        self._bind_decorator(decorator_handler)
+        if initializer is not None and self._initialized:
+            initializer.complete_decorator_adoption()
+        for further in list(self._further_apps):
+            further.set_decorator_handler(decorator_handler)
+
+    def _bind_decorator(self, decorator: BaseSecurityDecorator | None) -> None:
+        initializer = self.handler_initializer
+        self.guard_decorator = decorator
         if self.route_resolver:
-            self.route_resolver.context.guard_decorator = decorator_handler
+            self.route_resolver.context.guard_decorator = decorator
         if self.behavioral_processor:
             behavioral = self.behavioral_processor.context
-            behavioral.guard_decorator = decorator_handler
+            behavioral.guard_decorator = decorator
             if initializer is not None:
                 behavioral.behavior_tracker = initializer.behavior_tracker
         if self.response_factory:
-            self.response_factory.context.guard_decorator = decorator_handler
+            self.response_factory.context.guard_decorator = decorator
         if self._app is not None:
             ext = self._app.extensions.get("flaskapi_guard")
             if isinstance(ext, dict):
-                ext["guard_decorator"] = decorator_handler
-        if initializer is not None and self._initialized:
-            initializer.complete_decorator_adoption()
+                ext["guard_decorator"] = decorator
 
     @property
     def guard_response_factory(self) -> FlaskResponseFactory:
@@ -466,12 +554,14 @@ class FlaskAPIGuard:
         guard_request.state.guard_route_template = getattr(
             request.url_rule, "rule", None
         )
-        guard_request.state.guard_endpoint_id = (
-            f"{view_func.__module__}.{view_func.__qualname__}"
+        guard_request.state.guard_endpoint_id = endpoint_id_of_view(
+            view_func, request.endpoint
         )
-        route_id = getattr(view_func, "_guard_route_id", None)
-        if route_id is not None:
-            guard_request.state.guard_route_id = route_id
+        route_ids = route_ids_of_view(view_func, request.method.lower())
+        if route_ids:
+            guard_request.state.guard_route_id = route_ids[0][1]
+            self._warn_once_decorator_missing()
+            self._warn_once_decorators_in_several_places(view_func, route_ids)
         if getattr(self.security_pipeline, "needs_route_identity", False):
             guard_request.state.guard_route_identity = (
                 view_func,
@@ -564,13 +654,11 @@ class FlaskAPIGuard:
         return self._build_flask_preflight_response(preflight)
 
     def _call_view(self, _guard_request: object) -> FlaskGuardResponse:
-        from flask import current_app, request
+        from flask import current_app
 
-        endpoint = request.endpoint
-        if endpoint is None:
-            raise RuntimeError("the request matched no endpoint")
-        view = current_app.ensure_sync(current_app.view_functions[endpoint])
-        rv = view(**(request.view_args or {}))
+        # Flask's own dispatch: it raises the routing exception (404, 405,
+        # redirect) and answers the automatic OPTIONS as it does without the guard
+        rv = current_app.dispatch_request()
         return FlaskGuardResponse(current_app.make_response(rv))
 
     def _early_response(
@@ -616,8 +704,8 @@ class FlaskAPIGuard:
         client_ip = extract_client_ip(guard_request, config, self.agent_handler)
         route_config = route_resolver.get_route_config(guard_request)
 
-        g.client_ip = client_ip
-        g.route_config = route_config
+        guard_request.state.client_ip = client_ip
+        guard_request.state.route_config = route_config
 
         early = self._early_response(
             bypass_handler.handle_security_bypass(

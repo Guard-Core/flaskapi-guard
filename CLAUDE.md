@@ -302,7 +302,7 @@ REDIS_URL=redis://localhost:6379 uv run pytest -k "extension" -v
 
 - All custom callables (`custom_request_check`, `custom_response_modifier`, route validators, `auth_verifier`) are **synchronous**; the adapter runs on the `guard_core.sync` mirror
 - Per-request state lives on `flask.g`, not `request.state`
-- IP extraction uses `request.remote_addr` / `request.access_route`, proxy-aware
+- IP extraction uses `request.remote_addr` plus the `X-Forwarded-For` header (guard-core resolves it for `trusted_proxies`; `request.access_route` is not read)
 - Redis and outbound HTTP use synchronous clients (`redis.Redis`, `httpx.Client`)
 
 ### Security Considerations
