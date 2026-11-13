@@ -45,7 +45,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.routing import MapAdapter
 from werkzeug.security import safe_join
 
-from flaskapi_guard._declared_path_params import warn_at_first_request
+from flaskapi_guard._declared_path_params import report_declared_path_params
 from flaskapi_guard.adapters import (
     FlaskGuardRequest,
     FlaskGuardResponse,
@@ -332,8 +332,10 @@ class FlaskAPIGuard:
         if not self._path_params_checked:
             from flask import current_app
 
+            report_declared_path_params(
+                _present(self.config, "config"), current_app, self.guard_decorator
+            )
             self._path_params_checked = True
-            warn_at_first_request(current_app, self.guard_decorator)
         try:
             self._initialize_handlers()
         except GuardRedisError as e:

@@ -1,5 +1,6 @@
 """LEDGER 6.851: a declared detection_exclusion path param the route does not have is
-logged once as a WARNING at the first request, from the URL map, and never raises."""
+logged once as a WARNING at the first request, from the URL map; with the flag on the
+first request refuses instead."""
 
 import logging
 from collections.abc import Callable
@@ -100,7 +101,6 @@ def _problems(caplog: pytest.LogCaptureFixture) -> list[str]:
     ]
 
 
-@pytest.mark.parametrize("flag", [True, False])
 @pytest.mark.parametrize(
     ("declare", "path", "tail"),
     [
@@ -109,14 +109,13 @@ def _problems(caplog: pytest.LogCaptureFixture) -> list[str]:
         (declare_in_a_blueprint, "/things/7", _missing("/things/<thing_id>")),
     ],
 )
-def test_the_first_request_warns_once_and_never_raises(
-    flag: bool,
+def test_the_first_request_warns_once_with_the_flag_off(
     declare: Declare,
     path: str,
     tail: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    app = _app(declare, flag=flag)
+    app = _app(declare, flag=False)
     caplog.set_level(logging.WARNING, logger=LOGGER)
 
     assert app.test_client().get(path).status_code == 200
@@ -129,7 +128,7 @@ def test_the_first_request_warns_once_and_never_raises(
 def test_one_view_on_two_rules_is_checked_per_rule(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    app = _app(declare_one_view_on_two_rules)
+    app = _app(declare_one_view_on_two_rules, flag=False)
     caplog.set_level(logging.WARNING, logger=LOGGER)
 
     assert app.test_client().get("/a/1").status_code == 200
