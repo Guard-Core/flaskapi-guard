@@ -8,10 +8,11 @@ from collections.abc import Iterator
 import pytest
 from flask import Flask
 from guard_core._misconfiguration_kinds import MisconfigurationError
+from guard_core.sync.protocols.request_protocol import SyncGuardRequest
 from werkzeug.routing import Rule
 
 import flaskapi_guard
-from flaskapi_guard import FlaskAPIGuard
+from flaskapi_guard import FlaskAPIGuard, SecurityConfig, SecurityDecorator
 from tests.test_declared_path_params import (
     LOGGER,
     Declare,
@@ -198,7 +199,7 @@ def test_the_reporter_walks_the_app_itself_when_it_is_given_no_problems(
     )
 
 
-def test_a_later_request_with_the_flag_off_reports_nothing_again(
+def test_a_problem_is_warned_once_per_app_however_often_it_is_reported(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     from flaskapi_guard._declared_path_params import (
@@ -212,11 +213,15 @@ def test_a_later_request_with_the_flag_off_reports_nothing_again(
     caplog.set_level(logging.WARNING, logger=LOGGER)
 
     assert guard.config is not None
-    report_declared_path_params(
-        guard.config, app, guard.guard_decorator, problems=problems, first=False
-    )
+    for _ in range(2):
+        report_declared_path_params(
+            guard.config, app, guard.guard_decorator, problems=problems, first=False
+        )
 
-    assert [r for r in caplog.records if "@detection_exclusion" in r.getMessage()] == []
+    assert (
+        len([r for r in caplog.records if "@detection_exclusion" in r.getMessage()])
+        == 1
+    )
 
 
 def test_flask_refuses_late_routes_after_the_first_request() -> None:
@@ -231,3 +236,37 @@ def test_flask_refuses_late_routes_after_the_first_request() -> None:
         app.add_url_rule("/late", "late", lambda: "ok")
     with pytest.raises(AssertionError):
         app.register_blueprint(Blueprint("late_bp", __name__))
+
+
+@pytest.mark.parametrize(
+    ("fail_secure", "passive_mode"),
+    [(True, False), (False, False), (True, True)],
+    ids=["fail_secure", "fail_open", "passive"],
+)
+def test_the_refusal_is_a_500_and_the_endpoint_never_runs(
+    fail_secure: bool, passive_mode: bool
+) -> None:
+    ran: list[int] = []
+    config = SecurityConfig[SyncGuardRequest](
+        enable_redis=False,
+        rate_limit=100000,
+        fail_on_misconfiguration=True,
+        fail_secure=fail_secure,
+        passive_mode=passive_mode,
+    )
+    app = Flask(__name__)
+    guard = FlaskAPIGuard(app, config=config)
+    decorator = SecurityDecorator(config)
+    guard.set_decorator_handler(decorator)
+
+    @app.get("/items/<int:item_id>")
+    @decorator.detection_exclusion(path_params={"ghost"})
+    def item(item_id: int) -> str:
+        ran.append(item_id)
+        return "ok"
+
+    app.config["PROPAGATE_EXCEPTIONS"] = False
+    codes = [app.test_client().get("/items/7").status_code for _ in range(3)]
+
+    assert codes == [500, 500, 500]
+    assert ran == []

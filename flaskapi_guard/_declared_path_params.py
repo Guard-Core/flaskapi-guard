@@ -1,5 +1,8 @@
 from flask import Flask
-from guard_core._misconfiguration import config_logger, report_misconfigurations
+from guard_core._misconfiguration import (
+    config_logger,
+    report_declared_path_param_problems,
+)
 from guard_core._misconfiguration_kinds import Problem
 from guard_core.models import SecurityConfig
 from guard_core.sync._utils.route_gate import detection_exclusion_path_param_problems
@@ -50,5 +53,6 @@ def report_declared_path_params(
             "Every request is refused until this is fixed: %s",
             "; ".join(problems),
         )
-    if first or config.fail_on_misconfiguration:
-        report_misconfigurations(config, problems, logger=config_logger, stacklevel=2)
+    report_declared_path_param_problems(
+        config, problems, logger=config_logger, stacklevel=2
+    )
