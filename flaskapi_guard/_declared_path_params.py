@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+
 from flask import Flask
 from guard_core._misconfiguration import (
     config_logger,
@@ -5,9 +7,22 @@ from guard_core._misconfiguration import (
 )
 from guard_core._misconfiguration_kinds import Problem
 from guard_core.models import SecurityConfig
-from guard_core.sync._utils.route_gate import detection_exclusion_path_param_problems
-from guard_core.sync.decorators.base import BaseSecurityDecorator
+from guard_core.sync._utils.route_gate import (
+    detection_exclusion_path_param_problems,
+    route_unknown_to_decorator_problem,
+)
+from guard_core.sync.decorators.base import BaseSecurityDecorator, RouteConfig
 from guard_core.sync.protocols.request_protocol import SyncGuardRequest
+
+
+def _route_configs(
+    app: Flask, guard_decorator: BaseSecurityDecorator
+) -> Iterator[tuple[str, str, RouteConfig | None]]:
+    for rule in app.url_map.iter_rules():
+        view = app.view_functions.get(rule.endpoint)
+        route_id = getattr(view, "_guard_route_id", None)
+        if route_id:
+            yield rule.rule, route_id, guard_decorator.get_route_config(route_id)
 
 
 def declared_path_param_problems(
@@ -16,19 +31,15 @@ def declared_path_param_problems(
     if guard_decorator is None:
         return []
     problems: list[Problem] = []
-    for rule in app.url_map.iter_rules():
-        view = app.view_functions.get(rule.endpoint)
-        route_id = getattr(view, "_guard_route_id", None)
-        if not route_id:
-            continue
-        route_config = guard_decorator.get_route_config(route_id)
-        declared = getattr(route_config, "excluded_detection_path_params", None)
-        if not declared:
-            continue
-        problems += detection_exclusion_path_param_problems(
-            route_id, rule.rule, declared
-        )
-    return problems
+    unknown: dict[str, Problem] = {}
+    for template, route_id, route_config in _route_configs(app, guard_decorator):
+        if route_config is None:
+            unknown.setdefault(route_id, route_unknown_to_decorator_problem(route_id))
+        elif declared := getattr(route_config, "excluded_detection_path_params", None):
+            problems += detection_exclusion_path_param_problems(
+                route_id, template, declared
+            )
+    return problems + list(unknown.values())
 
 
 def report_declared_path_params(

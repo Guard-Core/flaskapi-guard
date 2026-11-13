@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 from typing import Any, cast
@@ -5,6 +6,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from flask import Flask, Response
+from guard_core._utils.route_gate import route_unknown_to_decorator_problem
+from guard_core.exceptions import MisconfigurationError
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.decorators.base import RouteConfig
 from guard_core.sync.detection_result import DetectionResult
@@ -416,40 +419,41 @@ def test_get_route_decorator_config_no_guard_decorator() -> None:
         assert result is None
 
 
-def test_get_route_decorator_config_fallback_to_guard_decorator() -> None:
-    """Test get_route_config falls back to guard_decorator."""
+def _resolve_an_unknown_route_id(flag: bool, path: str) -> Any:
     app = Flask(__name__)
-    config = SecurityConfig[SyncGuardRequest]()
+    config = SecurityConfig[SyncGuardRequest](fail_on_misconfiguration=flag)
     guard = FlaskAPIGuard(app, config=config)
-
-    decorator = SecurityDecorator(config)
-    guard.set_decorator_handler(decorator)
+    guard.set_decorator_handler(SecurityDecorator(config))
 
     assert guard.route_resolver is not None
-    with app.test_request_context("/test"):
+    with app.test_request_context(path):
         mock_request = Mock()
         mock_request.endpoint = "nonexistent"
+        mock_request.state.guard_route_id = "nonexistent_route_id"
+        return guard.route_resolver.get_route_config(mock_request)
 
-        result = guard.route_resolver.get_route_config(mock_request)
-        assert result is None
+
+@pytest.mark.parametrize("path", ["/test", "/nonexistent"])
+def test_get_route_decorator_config_unknown_route_id_is_none_with_the_flag_off(
+    path: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING)
+
+    assert _resolve_an_unknown_route_id(False, path) is None
+    kinds = [kind for r in caplog.records for kind, _ in r.__dict__.get("problems", ())]
+    assert kinds.count(route_unknown_to_decorator_problem("x").kind) == 1
 
 
-def test_get_route_decorator_config_no_matching_route() -> None:
-    """Test get_route_config (via route_resolver) when no matching route is found."""
-    app = Flask(__name__)
-    config = SecurityConfig[SyncGuardRequest]()
-    guard = FlaskAPIGuard(app, config=config)
+@pytest.mark.parametrize("path", ["/test", "/nonexistent"])
+def test_get_route_decorator_config_unknown_route_id_is_refused_by_default(
+    path: str,
+) -> None:
+    with pytest.raises(MisconfigurationError) as refused:
+        _resolve_an_unknown_route_id(True, path)
 
-    decorator = SecurityDecorator(config)
-    guard.set_decorator_handler(decorator)
-
-    assert guard.route_resolver is not None
-    with app.test_request_context("/nonexistent"):
-        mock_request = Mock()
-        mock_request.endpoint = "nonexistent"
-
-        result = guard.route_resolver.get_route_config(mock_request)
-        assert result is None
+    assert [p.kind for p in refused.value.problems] == [
+        route_unknown_to_decorator_problem("nonexistent_route_id").kind
+    ]
 
 
 def test_bypass_all_security_checks() -> None:
